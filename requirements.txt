@@ -1,0 +1,4 @@
+psutil
+pynvml
+py-cpuinfo
+watchdog
