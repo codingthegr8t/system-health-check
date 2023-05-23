@@ -63,7 +63,7 @@ class SystemMonitor:
             pynvml.nvmlShutdown()
         except pynvml.NVMLError as err:
             if err.value in (pynvml.NVML_ERROR_LIBRARY_NOT_FOUND, pynvml.NVML_ERROR_DRIVER_NOT_LOADED):
-                logging.warning("NVML Shared Library Not Found or NVIDIA GPU Driver Not Loaded. No NVIDIA GPU will be monitored.")
+                logging.warning("NVML Shared Library Not Found or NVIDIA GPU Driver Not Loaded. GPU will be monitored.")
                 return False
             else:
                 raise 
