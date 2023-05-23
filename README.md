@@ -23,7 +23,7 @@ The `config.ini` file is used to configure the application. This file contains t
 ## Running the Application
 To start the system health monitor, run the main.py script:
 *  `python main.py`
-or 
+- or 
 *  `./main.py`
 The application will begin monitoring your system resources based on your config.ini settings and log events to logfile.log. 
 If you want to use schedule tasks this option is possible but I would not recommend using cronjob.
