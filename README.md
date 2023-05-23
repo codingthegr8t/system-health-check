@@ -20,11 +20,12 @@ The `config.ini` file is used to configure the application. This file contains t
 In the <general> section, you specify the resources to monitor and their respective thresholds.
 In the <time> section, you define the check frequency (in seconds) and the wait time to resend email alerts (also in seconds).
 The <email> section is used to configure the SMTP server details for sending alert emails.
-
+  
 ## Running the Application
 To start the system health monitor, run the main.py script:
   `python main.py`
 or 
   `./main.py`
-The application will begin monitoring your system resources based on your config.ini settings and log events to logfile.log. I would not recommend using cronjob.
+The application will begin monitoring your system resources based on your config.ini settings and log events to logfile.log. 
+If you want to use schedule tasks this option is possible but I would not recommend using cronjob.
 The script already has build-in runtime so cronjob would be not needed. 
