@@ -1,5 +1,5 @@
 # System health-check
-System Health Monitor is a Python application designed to monitor the health of system resources and send alerts when usage thresholds are exceeded. 
+System Health Monitor is a Python script designed to monitor the health of system resources and send alerts when usage thresholds are exceeded. 
 The application is flexible and user-configurable, allowing you to tailor monitoring to your specific needs.
 
 ## Features
@@ -27,10 +27,9 @@ To start the system health monitor, run the main.py script:
 The application will begin monitoring your system resources based on your config.ini settings and log events to logfile.log. 
 ### RECOMMENDATION:
 The use of task schedulers or services are needed if you want the script to run indefinitely.
-"""
-**Linux**: using crontab might not be the most suitable. It would be more suitable to use something like [systemd](https://medium.com/@benmorel/creating-a-linux-service-with-systemd-611b5c8b91d6).
-**Windows**: you can use the [Windows Task Scheduler](https://www.windowscentral.com/how-create-automated-task-using-task-scheduler-windows-10) to create a task that runs the Python script at startup.
-"""
+> **Linux**: using crontab might not be the most suitable. It would be more suitable to use something like [systemd](https://medium.com/@benmorel/creating-a-linux-service-with-systemd-611b5c8b91d6).
+
+> **Windows**: you can use the [Windows Task Scheduler](https://www.windowscentral.com/how-create-automated-task-using-task-scheduler-windows-10) to create a task that runs the Python script at startup.
 
 # Contact
 
