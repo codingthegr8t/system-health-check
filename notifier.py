@@ -2,6 +2,7 @@ import smtplib
 import logging
 import sys
 import time
+import socket
 from email.message import EmailMessage
 from configuration import Configuration
 
@@ -14,21 +15,6 @@ class Notifier:
         self.recipient = recipient
         self.config = Configuration()
 
-    def format_wait_time(self, wait_time):
-        if wait_time < 60:
-            return wait_time, 'seconds'
-        elif wait_time < 3600:
-            return wait_time / 60, 'minutes'
-        else:
-            return wait_time / 3600, 'hours'
-        
-    def enforce_max_wait_time(self, wait_time):
-        """Enforces a maximum wait time of 12 hours."""
-        if wait_time > 43200:
-            logging.warning("Wait time exceeded limit of 12 hours, setting to default 1 hours.")
-            return 3600
-        return wait_time
-
     def create_email(self, subject, body):
         msg = EmailMessage()
         msg.set_content(body)
@@ -39,7 +25,7 @@ class Notifier:
         return msg
 
     def send_alert(self, subject, body):
-        """Sends an alert email using SMTP."""
+        """Sends an alert email using SMTP"""
         msg = self.create_email(subject, "\n" + body)
         retry_count = 0
         while retry_count < 6:
@@ -60,8 +46,9 @@ class Notifier:
                 logging.error(f"Recipient refused: {self.recipient}. Please check the recipient's email address.")
                 return
             else:
-                wait_time = self.enforce_max_wait_time(self.config.wait_time_to_resend_email)
-                wait_time_str, timeframe = self.format_wait_time(wait_time)
+                check_network_connection()
+                wait_time = enforce_max_wait_time(self.config.wait_time_to_resend_email)
+                wait_time_str, timeframe = format_wait_time(wait_time)
                 logging.error(f"Failed to send alert email. Retrying in {wait_time_str:.0f} {timeframe}.")
                 time.sleep(wait_time)
                 retry_count += 1
@@ -92,3 +79,28 @@ class Notifier:
         subject = self.config.alert_subject_template.format(device_name=device_name, resource_name=resource_name)
         body = self.config.alert_body_template.format(device_name=device_name, resource_name=resource_name, threshold=threshold)
         self.send_alert(subject, body)
+
+def check_network_connection(host="www.google.com", port=80):
+    """Check network connection for email error """
+    try:
+        socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
+        return True
+    except Exception as e:
+        logging.error(f"Network connection unavailable. {e}")
+        return False
+
+def format_wait_time(wait_time):
+    """Formatting the waiting timeframe"""
+    if wait_time < 60:
+        return wait_time, 'seconds'
+    elif wait_time < 3600:
+        return wait_time / 60, 'minutes'
+    else:
+        return wait_time / 3600, 'hours'
+    
+def enforce_max_wait_time(wait_time):
+    """Enforces a maximum wait time of 12 hours."""
+    if wait_time > 43200:
+        logging.warning("Wait time exceeded limit of 12 hours, setting to default 1 hours.")
+        return 3600
+    return wait_time
