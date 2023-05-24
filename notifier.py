@@ -7,6 +7,24 @@ from email.message import EmailMessage
 from email_validator import validate_email, EmailNotValidError
 from configuration_test import Configuration
 
+class SMTPError(Exception):
+    pass
+
+class SMTPAuthError(SMTPError):
+    pass
+
+class SMTPConnectError(SMTPError):
+    pass
+
+class SMTPResponseError(SMTPError):
+    pass
+
+class SMTPRecipientsRefusedError(SMTPError):
+    pass
+
+class SMTPGenericError(SMTPError):
+    pass
+
 class Notifier:
     """
     The Notifier class is responsible for sending alert notifications through email. 
@@ -17,8 +35,8 @@ class Notifier:
     between attempts that does not exceed 12 hours.
 
     The class also provides a method for sending a test email to verify that the email functionality
-    is working correctly. It also checks for network connection availability in case of email sending 
-    failure.
+    is working correctly. It also checks for network connection availability in case of email 
+    sending failure.
     
     Attributes:
         smtp_server (str): The SMTP server to use for sending emails.
@@ -36,6 +54,7 @@ class Notifier:
         self.config = Configuration()
 
     def create_email(self, subject, body):
+        """Creates the email."""
         msg = EmailMessage()
         msg.set_content(body)
         msg["Subject"] = subject
@@ -51,7 +70,7 @@ class Notifier:
         return msg
 
     def validate_email(self, email):
-        """Validate email format"""
+        """Validate email format."""
         try:
             # validate and get info
             validate_email(email)
@@ -63,64 +82,79 @@ class Notifier:
             return False
 
     def send_alert(self, subject, body):
-        """Sends an alert email using SMTP"""
+        """Sends an alert email and handles potential errors."""
         msg = self.create_email(subject, "\n" + body)
         retry_count = 0
         while retry_count < 6:
-            result = self.try_send_message(msg)
-            if result == "success":
+            try:
+                self.try_send_message(msg)
                 logging.info("Alert email sent successfully.")
                 return
-            elif result == "auth_error":
-                logging.error("SMTP authentication error occurred. Please check your SMTP username and password (Learn more at https://support.google.com/mail/?p=BadCredentials).")
+            except SMTPAuthError as err:
+                logging.error(str(err))
                 return
-            elif result == "connect_error":
-                logging.error("Unable to connect to the SMTP server. Please check your SMTP server settings.")
+            except SMTPConnectError as err:
+                logging.error(str(err))
                 return
-            elif result == "response_error":
-                logging.error("Unexpected response from the SMTP server. Please check your SMTP server settings.")
+            except SMTPResponseError as err:
+                logging.error(str(err))
                 return
-            elif result == "recipients_refused":
-                logging.error("Recipient refused: %s. Please check the recipient's email address.", self.recipient)
+            except SMTPRecipientsRefusedError as err:
+                logging.error(str(err))
                 return
-            else:
+            except SMTPGenericError:
                 self.check_network_connection()
                 wait_time = self.enforce_max_wait_time(self.config.wait_time_to_resend_email)
                 wait_time_str, timeframe = self.format_wait_time(wait_time)
                 logging.error("Failed to send alert email. Retrying in %.0f %s.", wait_time_str, timeframe)
                 time.sleep(wait_time)
                 retry_count += 1
-
         if retry_count == 6:
             logging.critical("Failed to send alert email after 6 retries. Exiting the program.")
             sys.exit(1)
 
     def try_send_message(self, msg):
+        """
+        Tries to send an email message using SMTP. 
+
+        This function creates a connection with the SMTP server, logs in using the SMTP username 
+        and password, and sends the email message. If any error occurs during this process, 
+        it raises an exception specific to that error type.
+
+        Parameters:
+            msg (EmailMessage): The email message to be sent.
+
+        Raises:
+            SMTPAuthError: If an authentication error occurs with the SMTP server.
+            SMTPConnectError: If unable to connect to the SMTP server.
+            SMTPResponseError: If an unexpected response is received from the SMTP server.
+            SMTPRecipientsRefusedError: If the recipient's email address is refused by the SMTP server.
+            SMTPGenericError: For any other errors that may occur.
+        """
         try:
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
                 server.starttls()
                 server.login(self.smtp_username, self.smtp_password)
                 server.send_message(msg)
-            return "success"
-        except smtplib.SMTPAuthenticationError:
-            return "auth_error"
-        except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected):
-            return "connect_error"
-        except smtplib.SMTPResponseException:
-            return "response_error"
-        except (smtplib.SMTPRecipientsRefused, IndexError):
-            return "recipients_refused"
-        except (smtplib.SMTPException, OSError):
-            return "other_error"
+        except smtplib.SMTPAuthenticationError as auth_err:
+            raise SMTPAuthError("SMTP authentication error occurred. Please check your SMTP username and password (Learn more at https://support.google.com/mail/?p=BadCredentials).") from auth_err
+        except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected) as server_err:
+            raise SMTPConnectError("Unable to connect to the SMTP server. Please check your SMTP server settings.") from server_err
+        except smtplib.SMTPResponseException as exc_err:
+            raise SMTPResponseError("Unexpected response from the SMTP server. Please check your SMTP server settings.") from exc_err
+        except smtplib.SMTPRecipientsRefused as recipient_err:
+            raise SMTPRecipientsRefusedError(f"Recipient refused: {self.recipient}. Please check the recipient's email address.") from recipient_err
+        except (smtplib.SMTPException, OSError) as gen_error:
+            raise SMTPGenericError("An error occurred while trying to send the email.") from gen_error
 
     def alert_format(self, device_name, resource_name, threshold):
-        """Formatting the email layout for individual monitor component"""
+        """Formatting the email layout for individual monitor component."""
         subject = self.config.alert_subject_template.format(device_name=device_name, resource_name=resource_name)
         body = self.config.alert_body_template.format(device_name=device_name, resource_name=resource_name, threshold=threshold)
         self.send_alert(subject, body)
 
     def send_test_email(self):
-        """Check to see if the email is working"""
+        """Check to see if the email is working."""
         try:
             subject = "Test Email from System Health Monitor"
             body = "This is a test email sent by the system monitoring script. If you're reading this, then the email functionality is working correctly."
@@ -130,7 +164,7 @@ class Notifier:
             sys.exit(0)
 
     def check_network_connection(self, host="www.google.com", port=80):
-        """Check network connection for email error"""
+        """Check network connection for email error."""
         try:
             socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
             return True
@@ -139,7 +173,7 @@ class Notifier:
             return False
 
     def format_wait_time(self, wait_time):
-        """Formatting the waiting timeframe"""
+        """Formatting the waiting timeframe."""
         if wait_time < 60:
             return wait_time, 'seconds'
         elif wait_time < 3600:
