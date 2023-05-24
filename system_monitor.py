@@ -24,9 +24,12 @@ class SystemMonitor:
         except FileNotFoundError:
             logging.error(f"Disk path {disk} not found.")
             raise FileNotFoundError(f"Disk path {disk} not found.")
-        except Exception as exception:
-            logging.error(f"Failed to get disk usage: {exception}")
-            raise Exception(f"Unexpected error when retrieving disk usage: {exception}")
+        except PermissionError:
+            logging.error(f"Permission denied to access {disk}.")
+            raise PermissionError(f"Permission denied to access {disk}.")
+        except OSError as os_error:
+            logging.error(f"OS error when retrieving disk usage: {os_error}")
+            raise
         return total, free, percent_free
 
     def get_cpu_usage(self):
