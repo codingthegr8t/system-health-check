@@ -57,11 +57,17 @@ def main():
             # update the logger settings
             setup_logger(config)
 
+            # set wait time for check up notice
+            next_check = config.check_frequency
+            _next_check, timeframe = notifier.format_wait_time(next_check)
+
             health_checks = {disk: monitor.check_health(disk) for disk in monitor.config['disks']}
             if all(health_checks.values()):
                 logging.info("System health check passed.")
+                logging.info("The next monitoring will be in %.0f %s", _next_check, timeframe)
             else:
                 logging.warning("System health check failed")
+                logging.info("The next monitoring will be in %.0f %s", _next_check, timeframe)
 
             time.sleep(config.check_frequency)
 
