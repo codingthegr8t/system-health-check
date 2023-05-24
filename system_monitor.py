@@ -36,12 +36,12 @@ class SystemMonitor:
             total = du.total / 2**30     # Convert bytes to GB
             free = du.free / 2**30
             percent_free = free / total * 100
-        except FileNotFoundError as file_error:
+        except FileNotFoundError:
             logging.error("Disk path %s not found.", disk)
-            raise FileNotFoundError(f"Disk path {disk} not found.") from file_error
-        except PermissionError as perm_error:
+            raise
+        except PermissionError:
             logging.error("Permission denied to access %s.", disk)
-            raise PermissionError(f"Permission denied to access {disk}.") from perm_error
+            raise
         except OSError as os_error:
             logging.error("OS error when retrieving disk usage: %s", os_error)
             raise
@@ -90,7 +90,7 @@ class SystemMonitor:
         if not self.gpu_present:
             logging.error("GPU not present or not compatible.")
             return None
-        
+
         try:
             pynvml.nvmlInit()
             # Assuming one GPU. If you have more, you might need to loop over the device ids.
@@ -139,68 +139,53 @@ class SystemMonitor:
 
     def check_disk_health(self, device_name, disk):
         """Check the Disk health."""
-        try:
-            # Disk health check
-            total, free, percent_free = self.get_disk_usage(disk)
-            if percent_free <= self.config.disk_threshold:
-                self.notifier.alert_format(device_name, "Disks", self.config.disk_threshold)
-                logging.warning("Disk %s - Total space: %.1f GB, Free space: %.1f GB, Percentage free: %.1f%%", disk, total, free, percent_free)
-                return False
-        except Exception as err:
-            logging.error("Error while checking disk health: %s", err)
-            raise
+        total, free, percent_free = self.get_disk_usage(disk)
+        if percent_free <= self.config.disk_threshold:
+            self.notifier.alert_format(device_name, "Disks", self.config.disk_threshold)
+            logging.warning("Disk %s - Total space: %.1f GB, Free space: %.1f GB, Percentage free: %.1f%%", disk, total, free, percent_free)
+            return False
         return True
 
     def check_cpu_health(self, device_name):
         """Check the CPU health."""
-        try:
-            cpu_usage, cpu_info = self.get_cpu_usage()
-            if cpu_usage >= self.config.cpu_threshold:
-                self.notifier.alert_format(device_name, "CPU", self.config.cpu_threshold)
-                logging.warning("%s usage: %s%%", cpu_info, cpu_usage)
-                return False
-        except Exception as err:
-            logging.error("Error while checking cpu health: %s", err)
-            raise
+        cpu_usage, cpu_info = self.get_cpu_usage()
+        if cpu_usage >= self.config.cpu_threshold:
+            self.notifier.alert_format(device_name, "CPU", self.config.cpu_threshold)
+            logging.warning("%s usage: %s%%", cpu_info, cpu_usage)
+            return False
         return True
 
     def check_ram_health(self, device_name):
         """Check the RAM health."""
-        try:
-            total_ram, percent_ram_used = self.get_ram_usage()
-            if percent_ram_used >= self.config.ram_threshold:
-                self.notifier.alert_format(device_name, "RAM", self.config.ram_threshold)
-                logging.warning("Total System RAM: %.0f GB, RAM usage: %s%%", total_ram, percent_ram_used)
-                return False
-        except Exception as err:
-            logging.error("Error while checking disk health: %s", err)
-            raise
+        total_ram, percent_ram_used = self.get_ram_usage()
+        if percent_ram_used >= self.config.ram_threshold:
+            self.notifier.alert_format(device_name, "RAM", self.config.ram_threshold)
+            logging.warning("Total System RAM: %.0f GB, RAM usage: %s%%", total_ram, percent_ram_used)
+            return False
+
         return True
 
     def check_gpu_health(self, device_name):
         """Check the GPU's health."""
-        try:
-            gpu_utilization, gpu_total_memory, memory_utilization, gpu_temperature, gpu_name = self.get_gpu_usage()
-            alert_info = []
+        gpu_utilization, gpu_total_memory, memory_utilization, gpu_temperature, gpu_name = self.get_gpu_usage()
+        alert_info = []
 
-            if gpu_utilization >= self.config.gpu_threshold:
-                alert_info.append({"resource_name": "GPU Utilization", "threshold": self.config.gpu_threshold})
+        if gpu_utilization >= self.config.gpu_threshold:
+            alert_info.append({"resource_name": "GPU Utilization", "threshold": self.config.gpu_threshold})
 
-            if memory_utilization >= self.config.gpu_memory_threshold:
-                alert_info.append({"resource_name": "GPU Memory Utilization", "threshold": self.config.gpu_memory_threshold})
+        if memory_utilization >= self.config.gpu_memory_threshold:
+            alert_info.append({"resource_name": "GPU Memory Utilization", "threshold": self.config.gpu_memory_threshold})
 
-            if gpu_temperature >= self.config.gpu_temp_threshold:
-                alert_info.append({"resource_name": "GPU Temperature", "threshold": self.config.gpu_temp_threshold})
+        if gpu_temperature >= self.config.gpu_temp_threshold:
+            alert_info.append({"resource_name": "GPU Temperature", "threshold": self.config.gpu_temp_threshold})
 
-            if alert_info:
-                resource_name_formatted = ', '.join([f'{info["resource_name"]}' for info in alert_info])
-                threshold_formatted = ', '.join([f'{info["threshold"]}' for info in alert_info])
-                self.notifier.alert_format(device_name, resource_name_formatted, threshold_formatted)
-                logging.warning("%s - GPU Utilization: %s%%, GPU Memory Utilization: %.1f%%, GPU Total Memory: %.0f, GPU Temperature: %s\u2103", gpu_name, gpu_utilization, memory_utilization, gpu_total_memory, gpu_temperature)
-                return False
-        except Exception as err:
-            logging.error("Error while checking GPU health: %s", err)
-            raise
+        if alert_info:
+            resource_name_formatted = ', '.join([f'{info["resource_name"]}' for info in alert_info])
+            threshold_formatted = ', '.join([f'{info["threshold"]}' for info in alert_info])
+            self.notifier.alert_format(device_name, resource_name_formatted, threshold_formatted)
+            logging.warning("%s - GPU Utilization: %s%%, GPU Memory Utilization: %.1f%%, GPU Total Memory: %.0f, GPU Temperature: %s\u2103", gpu_name, gpu_utilization, memory_utilization, gpu_total_memory, gpu_temperature)
+            return False
+
         return True
 
     def check_health(self, disk):
