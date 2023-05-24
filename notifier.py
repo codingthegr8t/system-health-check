@@ -4,7 +4,8 @@ import sys
 import time
 import socket
 from email.message import EmailMessage
-from configuration import Configuration
+from email_validator import validate_email, EmailNotValidError
+from configuration_test import Configuration
 
 class Notifier:
     def __init__(self, smtp_server, smtp_port, smtp_username, smtp_password, recipient):
@@ -20,9 +21,27 @@ class Notifier:
         msg.set_content(body)
         msg["Subject"] = subject
         msg["From"] = self.smtp_username
-        msg["To"] = self.recipient
+
+        # Check if email format is valid before setting
+        if self.validate_email(self.recipient):
+            msg["To"] = self.recipient
+        else:
+            raise ValueError(f"'{self.recipient}' is not a valid email format.")
+
         msg["Importance"] = "High"
         return msg
+
+    def validate_email(self, email):
+        """Validate email format"""
+        try:
+            # validate and get info
+            validate_email(email)
+            # email is valid
+            return True
+        except EmailNotValidError as err:
+            # email is not valid, exception message is human-readable
+            print(str(err))
+            return False
 
     def send_alert(self, subject, body):
         """Sends an alert email using SMTP"""
@@ -37,24 +56,24 @@ class Notifier:
                 logging.error("SMTP authentication error occurred. Please check your SMTP username and password (Learn more at https://support.google.com/mail/?p=BadCredentials).")
                 return
             elif result == "connect_error":
-                logging.error(f"Unable to connect to the SMTP server. Please check your SMTP server settings.")
+                logging.error("Unable to connect to the SMTP server. Please check your SMTP server settings.")
                 return
             elif result == "response_error":
-                logging.error(f"Unexpected response from the SMTP server. Please check your SMTP server settings.")
+                logging.error("Unexpected response from the SMTP server. Please check your SMTP server settings.")
                 return
             elif result == "recipients_refused":
-                logging.error(f"Recipient refused: {self.recipient}. Please check the recipient's email address.")
+                logging.error("Recipient refused: %s. Please check the recipient's email address.", self.recipient)
                 return
             else:
                 self.check_network_connection()
                 wait_time = self.enforce_max_wait_time(self.config.wait_time_to_resend_email)
                 wait_time_str, timeframe = self.format_wait_time(wait_time)
-                logging.error(f"Failed to send alert email. Retrying in {wait_time_str:.0f} {timeframe}.")
+                logging.error("Failed to send alert email. Retrying in %.0f %s.", wait_time_str, timeframe)
                 time.sleep(wait_time)
                 retry_count += 1
 
         if retry_count == 6:
-            logging.critical(f"Failed to send alert email after {6} retries. Exiting the program.")
+            logging.critical("Failed to send alert email after 6 retries. Exiting the program.")
             sys.exit(1)
 
     def try_send_message(self, msg):
@@ -70,17 +89,19 @@ class Notifier:
             return "connect_error"
         except smtplib.SMTPResponseException:
             return "response_error"
-        except smtplib.SMTPRecipientsRefused:
+        except (smtplib.SMTPRecipientsRefused, IndexError):
             return "recipients_refused"
         except (smtplib.SMTPException, OSError):
             return "other_error"
 
     def alert_format(self, device_name, resource_name, threshold):
+        """Formatting the email layout for individual monitor component"""
         subject = self.config.alert_subject_template.format(device_name=device_name, resource_name=resource_name)
         body = self.config.alert_body_template.format(device_name=device_name, resource_name=resource_name, threshold=threshold)
         self.send_alert(subject, body)
 
     def send_test_email(self):
+        """Check to see if the email is working"""
         try:
             subject = "Test Email from System Health Monitor"
             body = "This is a test email sent by the system monitoring script. If you're reading this, then the email functionality is working correctly."
@@ -94,8 +115,8 @@ class Notifier:
         try:
             socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
             return True
-        except Exception as e:
-            logging.error(f"Network connection unavailable. {e}")
+        except Exception as err:
+            logging.error("Network connection unavailable. %s", err)
             return False
 
     def format_wait_time(self, wait_time):
