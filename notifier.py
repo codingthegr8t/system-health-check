@@ -8,6 +8,25 @@ from email_validator import validate_email, EmailNotValidError
 from configuration_test import Configuration
 
 class Notifier:
+    """
+    The Notifier class is responsible for sending alert notifications through email. 
+
+    It is initialized with SMTP server details and the recipient's email address. It validates
+    the email address format and creates an email with a specific subject and body. In case of 
+    an error while sending the email, it will retry up to 6 times before stopping, with a delay
+    between attempts that does not exceed 12 hours.
+
+    The class also provides a method for sending a test email to verify that the email functionality
+    is working correctly. It also checks for network connection availability in case of email sending 
+    failure.
+    
+    Attributes:
+        smtp_server (str): The SMTP server to use for sending emails.
+        smtp_port (int): The port on the SMTP server to use.
+        smtp_username (str): The username to authenticate with the SMTP server.
+        smtp_password (str): The password to authenticate with the SMTP server.
+        recipient (str): The recipient's email address.
+    """
     def __init__(self, smtp_server, smtp_port, smtp_username, smtp_password, recipient):
         self.smtp_server = smtp_server
         self.smtp_port = smtp_port
