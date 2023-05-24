@@ -46,6 +46,7 @@ def main():
         config['smtp_password'],
         config['recipient'],
     )
+    notifier.send_test_email()
     monitor = SystemMonitor(config, notifier)
 
     try:
