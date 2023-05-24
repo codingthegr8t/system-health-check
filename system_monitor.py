@@ -12,17 +12,20 @@ class SystemMonitor:
     """
     The SystemMonitor class is a utility for monitoring system resources.
 
-    This class provides methods to monitor various system resources like Disk, CPU, RAM, and GPU if present.
+    This class provides methods to monitor various system resources like:
+    Disk, CPU, RAM, and GPU if present.
     It uses various external modules to gather the required data. 
     Any exception or error while fetching data is logged and raised further.
 
-    It also provides methods to check the health of these resources based on certain configurable thresholds.
-    In case of any resource crossing its threshold limit, it sends an alert using the provided notifier.
+    It also provides methods to check the health of 
+    these resources based on certain configurable thresholds.
+    In case of any resource crossing its threshold limit, 
+    it sends an alert using the provided notifier.
 
     Attributes:
     config : A Configuration object to hold all threshold values.
     notifier : A Notifier object to send alerts when resource usage exceeds the threshold.
-    gpu_present : A boolean indicating if a GPU is present on the system.
+    gpu_present : A boolean indicating if a NVDIA GPU is present on the system.
     """
     def __init__(self, config: Configuration, notifier: Notifier):
         self.config = config
@@ -183,7 +186,8 @@ class SystemMonitor:
             resource_name_formatted = ', '.join([f'{info["resource_name"]}' for info in alert_info])
             threshold_formatted = ', '.join([f'{info["threshold"]}' for info in alert_info])
             self.notifier.alert_format(device_name, resource_name_formatted, threshold_formatted)
-            logging.warning("%s - GPU Utilization: %s%%, GPU Memory Utilization: %.1f%%, GPU Total Memory: %.0f, GPU Temperature: %s\u2103", gpu_name, gpu_utilization, memory_utilization, gpu_total_memory, gpu_temperature)
+            logging.warning("%s - GPU Utilization: %s%%, GPU Memory Utilization: %.1f%%, GPU Total Memory: %.0f, "
+                            "GPU Temperature: %s\u2103", gpu_name, gpu_utilization, memory_utilization, gpu_total_memory, gpu_temperature)
             return False
 
         return True
