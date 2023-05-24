@@ -51,27 +51,26 @@ def main():
 
     try:
         while True:
-            try:
-                # reload the config at each check
-                config.read_config()
+            # reload the config at each check
+            config.read_config()
 
-                # update the logger settings
-                setup_logger(config)
+            # update the logger settings
+            setup_logger(config)
 
-                health_checks = {disk: monitor.check_health(disk) for disk in monitor.config['disks']}
-                if all(health_checks.values()):
-                    logging.info("System health check passed.")
-                else:
-                    logging.warning("System health check failed")
-            except Exception as error:
-                logging.exception(f"Exception during health check: {error}")
+            health_checks = {disk: monitor.check_health(disk) for disk in monitor.config['disks']}
+            if all(health_checks.values()):
+                logging.info("System health check passed.")
+            else:
+                logging.warning("System health check failed")
+
             time.sleep(config.check_frequency)
+
     except KeyboardInterrupt:
         observer.stop()
         logging.info("System monitoring stopped")
-    except Exception as error:
+    except Exception as err:
         observer.stop()
-        logging.exception(f"Unhandled exception occurred: {error}")
+        logging.exception("Exception during health check: %s", err)
 
     observer.join()
 
