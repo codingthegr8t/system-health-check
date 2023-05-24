@@ -16,9 +16,13 @@ class Notifier:
         self.config = Configuration()
 
     def send_test_email(self):
-        subject = "Test Email from System Health Monitor"
-        body = "This is a test email sent by the system monitoring script. If you're reading this, then the email functionality is working correctly."
-        self.send_alert(subject, body)
+        try:
+            subject = "Test Email from System Health Monitor"
+            body = "This is a test email sent by the system monitoring script. If you're reading this, then the email functionality is working correctly."
+            self.send_alert(subject, body)
+        except KeyboardInterrupt:
+            logging.info("System monitoring stopped")
+            sys.exit(0)
 
     def create_email(self, subject, body):
         msg = EmailMessage()
