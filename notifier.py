@@ -168,7 +168,7 @@ class Notifier:
         try:
             socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
             return True
-        except Exception as err:
+        except socket.error as err:
             logging.error("Network connection unavailable. %s", err)
             return False
 
