@@ -15,6 +15,11 @@ class Notifier:
         self.recipient = recipient
         self.config = Configuration()
 
+    def send_test_email(self):
+        subject = "Test Email from System Health Monitor"
+        body = "This is a test email sent by the system monitoring script. If you're reading this, then the email functionality is working correctly."
+        self.send_alert(subject, body)
+
     def create_email(self, subject, body):
         msg = EmailMessage()
         msg.set_content(body)
