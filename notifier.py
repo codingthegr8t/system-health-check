@@ -15,15 +15,6 @@ class Notifier:
         self.recipient = recipient
         self.config = Configuration()
 
-    def send_test_email(self):
-        try:
-            subject = "Test Email from System Health Monitor"
-            body = "This is a test email sent by the system monitoring script. If you're reading this, then the email functionality is working correctly."
-            self.send_alert(subject, body)
-        except KeyboardInterrupt:
-            logging.info("System monitoring stopped")
-            sys.exit(0)
-
     def create_email(self, subject, body):
         msg = EmailMessage()
         msg.set_content(body)
@@ -55,9 +46,9 @@ class Notifier:
                 logging.error(f"Recipient refused: {self.recipient}. Please check the recipient's email address.")
                 return
             else:
-                check_network_connection()
-                wait_time = enforce_max_wait_time(self.config.wait_time_to_resend_email)
-                wait_time_str, timeframe = format_wait_time(wait_time)
+                self.check_network_connection()
+                wait_time = self.enforce_max_wait_time(self.config.wait_time_to_resend_email)
+                wait_time_str, timeframe = self.format_wait_time(wait_time)
                 logging.error(f"Failed to send alert email. Retrying in {wait_time_str:.0f} {timeframe}.")
                 time.sleep(wait_time)
                 retry_count += 1
@@ -89,27 +80,36 @@ class Notifier:
         body = self.config.alert_body_template.format(device_name=device_name, resource_name=resource_name, threshold=threshold)
         self.send_alert(subject, body)
 
-def check_network_connection(host="www.google.com", port=80):
-    """Check network connection for email error """
-    try:
-        socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
-        return True
-    except Exception as e:
-        logging.error(f"Network connection unavailable. {e}")
-        return False
+    def send_test_email(self):
+        try:
+            subject = "Test Email from System Health Monitor"
+            body = "This is a test email sent by the system monitoring script. If you're reading this, then the email functionality is working correctly."
+            self.send_alert(subject, body)
+        except KeyboardInterrupt:
+            logging.info("System monitoring stopped")
+            sys.exit(0)
 
-def format_wait_time(wait_time):
-    """Formatting the waiting timeframe"""
-    if wait_time < 60:
-        return wait_time, 'seconds'
-    elif wait_time < 3600:
-        return wait_time / 60, 'minutes'
-    else:
-        return wait_time / 3600, 'hours'
-    
-def enforce_max_wait_time(wait_time):
-    """Enforces a maximum wait time of 12 hours."""
-    if wait_time > 43200:
-        logging.warning("Wait time exceeded limit of 12 hours, setting to default 1 hours.")
-        return 3600
-    return wait_time
+    def check_network_connection(self, host="www.google.com", port=80):
+        """Check network connection for email error"""
+        try:
+            socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
+            return True
+        except Exception as e:
+            logging.error(f"Network connection unavailable. {e}")
+            return False
+
+    def format_wait_time(self, wait_time):
+        """Formatting the waiting timeframe"""
+        if wait_time < 60:
+            return wait_time, 'seconds'
+        elif wait_time < 3600:
+            return wait_time / 60, 'minutes'
+        else:
+            return wait_time / 3600, 'hours'
+        
+    def enforce_max_wait_time(self, wait_time):
+        """Enforces a maximum wait time of 12 hours."""
+        if wait_time > 43200:
+            logging.warning("Wait time exceeded limit of 12 hours, setting to default 1 hours.")
+            return 3600
+        return wait_time
