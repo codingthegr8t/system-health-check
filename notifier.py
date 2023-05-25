@@ -168,8 +168,8 @@ class Notifier:
         try:
             socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
             return True
-        except Exception as err:
-            logging.error("Network connection unavailable. %s", err)
+        except (socket.error, socket.gaierror, socket.timeout) as network_err:
+            logging.error("Network connection unavailable. %s", network_err)
             return False
 
     def format_wait_time(self, wait_time):
@@ -180,7 +180,7 @@ class Notifier:
             return wait_time / 60, 'minutes'
         else:
             return wait_time / 3600, 'hours'
-        
+
     def enforce_max_wait_time(self, wait_time):
         """Enforces a maximum wait time of 12 hours."""
         if wait_time > 43200:
