@@ -1,5 +1,5 @@
 psutil
-pynvml
 py-cpuinfo
 email-validator
 watchdog
+pynvml
