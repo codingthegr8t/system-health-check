@@ -5,7 +5,7 @@ import time
 import socket
 from email.message import EmailMessage
 from email_validator import validate_email, EmailNotValidError
-from configuration_test import Configuration
+from configuration import Configuration
 
 class SMTPError(Exception):
     pass
