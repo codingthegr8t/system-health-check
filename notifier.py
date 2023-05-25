@@ -155,8 +155,9 @@ class Notifier:
 
     def send_test_email(self):
         """Check to see if the email is working."""
+        host = socket.gethostname()
         try:
-            subject = "Test Email from System Health Monitor"
+            subject = f"System Health Monitor Test Email from {host} "
             body = "This is a test email sent by the system monitoring script. If you're reading this, then the email functionality is working correctly."
             self.send_alert(subject, body)
         except KeyboardInterrupt:
