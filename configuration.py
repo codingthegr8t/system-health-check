@@ -6,7 +6,7 @@ class Configuration:
         self.config = configparser.ConfigParser()
         self.config_file = config_file
         self.read_config()
-
+        
     def __getitem__(self, key):
         return getattr(self, key, None)
 
@@ -26,22 +26,22 @@ class Configuration:
             self.gpu_memory_threshold = self.config.getint('general', 'gpu_memory_threshold')
             self.gpu_temp_threshold = self.config.getint('general', 'gpu_temp_threshold')
         except NoSectionError as err:
-            raise NoSectionError(f"{err}, Check if the 'general' section exists in the config.ini file or " 
-                                    "check if the config.ini file exist in the current directory when running this script")
+            raise NoSectionError(f"{err}, Check if the 'general' section exists in the config.ini file or "
+                                    "check if the config.ini file exist in the current directory when running this script") from err
         except NoOptionError as err:
-            raise NoOptionError(f"{err}, Check if the corresponding option exists in the 'general' section of the config.ini file.")
+            raise NoOptionError(f"{err}, Check if the corresponding option exists in the 'general' section of the config.ini file.", err.option) from err
         except ValueError as err:
-            raise ValueError(f"Configuration cannot be empty or the incorrect value has been set [ {err} ] Check the config file for incorrect usage.")
+            raise ValueError(f"Configuration cannot be empty or the incorrect value has been set [ {err} ] Check the config file for incorrect usage.") from err
 
         try:
             self.check_frequency = self.config.getint('time', 'check_frequency')
             self.wait_time_to_resend_email = self.config.getint('time', 'wait_time_to_resend_email')
         except NoSectionError as err:
-            raise NoSectionError(f"{err}, Check if the 'time' section exists in the config.ini file")
+            raise NoSectionError(f"{err}, Check if the 'time' section exists in the config.ini file") from err
         except NoOptionError as err:
-            raise NoOptionError(f"{err}, Check if the corresponding option exists in the 'general' section of the config.ini file.")
+            raise NoOptionError(f"{err}, Check if the corresponding option exists in the 'time' section of the config.ini file.", err.option) from err
         except ValueError as err:
-            raise ValueError(f"Configuration cannot be empty or the incorrect value has been set [ {err} ] Check the config file for incorrect usage.")
+            raise ValueError(f"Configuration cannot be empty or the incorrect value has been set [ {err} ] Check the config file for incorrect usage.") from err
 
         try:
             self.smtp_server = self.config.get('email', 'smtp_server')
@@ -52,8 +52,8 @@ class Configuration:
             self.alert_subject_template = self.config.get('email', 'alert_subject_template', fallback='[Alert] {device_name} {resource_name} threshold exceeded')
             self.alert_body_template = self.config.get('email', 'alert_body_template', fallback='Device: {device_name}, {resource_name}: usage is more than {threshold}%.')
         except NoSectionError as err:
-            raise NoSectionError(f"{err}, Check if the 'email' section exists in the config.ini file")
+            raise NoSectionError(f"{err}, Check if the 'email' section exists in the config.ini file") from err
         except NoOptionError as err:
-            raise NoOptionError(f"{err}, Check if the corresponding option exists in the 'general' section of the config.ini file.")
+            raise NoOptionError(f"{err}, Check if the corresponding option exists in the 'email' section of the config.ini file.", err.option) from err
         except ValueError as err:
-            raise ValueError(f"Configuration cannot be empty or the incorrect value has been set [ {err} ] Check the config file for incorrect usage.")
+            raise ValueError(f"Configuration cannot be empty or the incorrect value has been set [ {err} ] Check the config file for incorrect usage.") from err
