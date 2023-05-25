@@ -12,7 +12,7 @@ The application is flexible and user-configurable, allowing you to tailor monito
 ## Prerequisites
 The application requires Python 3.7 or higher.
 
-Before you begin, ensure you have installed all necessary packages by running: `pip install -r requirements.txt`
+Before you begin, ensure you have installed all necessary packages by running: `pip3 install -r requirements.txt`
 
 ## Configuration
 The `config.ini` file is used to configure the application. This file contains three sections: general, time, and email.
