@@ -1,42 +1,7 @@
 import configparser
 from configparser import NoSectionError, NoOptionError
 
-class CustomNoOptionError(NoOptionError):
-    """
-    Custom exception class for handling missing options in the configuration file.
-
-    The configparser module is designed to only take two arguments, section and option respectively.
-    My optionError will need to include the section and option at the same time and also display a 
-    custom error message.
-    """
-    def __init__(self, message, section, option):
-        super().__init__(option, section)
-        self.message = message
-
 class Configuration:
-    """
-    Class for handling system configuration based on an INI file.
-
-    The Configuration class uses the configparser module to read the configuration file
-    and exposes the configuration data as class properties. It also provides error handling
-    for missing sections or options in the configuration file.
-
-    Attributes
-    ----------
-    config : ConfigParser object
-        The ConfigParser object used for reading the configuration file.
-    config_file : str
-        The path to the configuration file.
-        
-    Methods
-    -------
-    __init__(config_file='config.ini'):
-        The constructor for the Configuration class.
-    __getitem__(key):
-        Getter method to return the attribute of the object.
-    read_config():
-        Reads the configuration file and sets the configuration properties.
-    """
     def __init__(self, config_file='config.ini'):
         self.config = configparser.ConfigParser()
         self.config_file = config_file
@@ -52,46 +17,43 @@ class Configuration:
     def read_config(self):
         self.config.read(self.config_file)
 
-        config_sections = {
-            "general": [
-                ("disks", str, 'split', ', '),
-                ("disk_threshold", int),
-                ("cpu_threshold", int),
-                ("ram_threshold", int),
-                ("gpu_threshold", int),
-                ("gpu_memory_threshold", int),
-                ("gpu_temp_threshold", int)
-            ],
-            "time": [
-                ("check_frequency", int),
-                ("wait_time_to_resend_email", int)
-            ],
-            "email": [
-                ("smtp_server", str),
-                ("smtp_port", int),
-                ("smtp_username", str),
-                ("smtp_password", str),
-                ("recipient", str),
-                ("alert_subject_template", str),
-                ("alert_body_template", str)
-            ]
-        }
+        try:
+            self.disks = self.config.get('general', 'disks').split(', ')
+            self.disk_threshold = self.config.getint('general', 'disk_threshold')
+            self.cpu_threshold = self.config.getint('general', 'cpu_threshold')
+            self.ram_threshold = self.config.getint('general', 'ram_threshold')
+            self.gpu_threshold = self.config.getint('general', 'gpu_threshold')
+            self.gpu_memory_threshold = self.config.getint('general', 'gpu_memory_threshold')
+            self.gpu_temp_threshold = self.config.getint('general', 'gpu_temp_threshold')
+        except NoSectionError as err:
+            raise NoSectionError(f"{err}, Check if the 'general' section exists in the config.ini file or " 
+                                    "check if the config.ini file exist in the current directory when running this script")
+        except NoOptionError as err:
+            raise NoOptionError(f"{err}, Check if the corresponding option exists in the 'general' section of the config.ini file.")
+        except ValueError as err:
+            raise ValueError(f"Configuration cannot be empty or the incorrect value has been set [ {err} ] Check the config file for incorrect usage.")
 
-        for section, options in config_sections.items():
-            for option in options:
-                try:
-                    option_name, option_type = option[0], option[1]
-                    option_value = self.config.get(section, option_name)
-                    if option_type == str and len(option) == 4:
-                        # this option needs to be split
-                        option_value = option_value.split(option[3])
-                    elif option_type == int:
-                        option_value = self.config.getint(section, option_name)
-                    setattr(self, option_name, option_value)
-                except NoSectionError as err:
-                    raise NoSectionError(f"{err}, Check if the '{section}' section exists in the config.ini file or "
-                                         "check if the correct .ini (defualt: config.ini) file exist in the current directory") from err
-                except NoOptionError as err:
-                    raise CustomNoOptionError(f"{err}. Check if the '{option_name}' option exists in the '{section}' section of the config.ini file.", section, option_name) from err
-                except ValueError as err:
-                    raise ValueError(f"Configuration cannot be empty or the incorrect value has been set [ {err} ]. Check the config file for incorrect usage.") from err
+        try:
+            self.check_frequency = self.config.getint('time', 'check_frequency')
+            self.wait_time_to_resend_email = self.config.getint('time', 'wait_time_to_resend_email')
+        except NoSectionError as err:
+            raise NoSectionError(f"{err}, Check if the 'time' section exists in the config.ini file")
+        except NoOptionError as err:
+            raise NoOptionError(f"{err}, Check if the corresponding option exists in the 'general' section of the config.ini file.")
+        except ValueError as err:
+            raise ValueError(f"Configuration cannot be empty or the incorrect value has been set [ {err} ] Check the config file for incorrect usage.")
+
+        try:
+            self.smtp_server = self.config.get('email', 'smtp_server')
+            self.smtp_port = self.config.getint('email', 'smtp_port')
+            self.smtp_username = self.config.get('email', 'smtp_username')
+            self.smtp_password = self.config.get('email', 'smtp_password')
+            self.recipient = self.config.get('email', 'recipient')
+            self.alert_subject_template = self.config.get('email', 'alert_subject_template', fallback='[Alert] {device_name} {resource_name} threshold exceeded')
+            self.alert_body_template = self.config.get('email', 'alert_body_template', fallback='Device: {device_name}, {resource_name}: usage is more than {threshold}%.')
+        except NoSectionError as err:
+            raise NoSectionError(f"{err}, Check if the 'email' section exists in the config.ini file")
+        except NoOptionError as err:
+            raise NoOptionError(f"{err}, Check if the corresponding option exists in the 'general' section of the config.ini file.")
+        except ValueError as err:
+            raise ValueError(f"Configuration cannot be empty or the incorrect value has been set [ {err} ] Check the config file for incorrect usage.")
