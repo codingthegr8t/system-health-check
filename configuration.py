@@ -51,7 +51,7 @@ class Configuration:
 
     def read_config(self):
         self.config.read(self.config_file)
-        
+
         config_sections = {
             "general": [
                 ("disks", str, 'split', ', '),
