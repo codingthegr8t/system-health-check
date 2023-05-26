@@ -6,7 +6,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from system_monitor import SystemMonitor
 from notifier import Notifier
-from configuration import Configuration
+from config_reader import ConfigReader, ConfigValidator
 
 class ConfigFileHandler(FileSystemEventHandler):
     def __init__(self, config):
@@ -14,7 +14,7 @@ class ConfigFileHandler(FileSystemEventHandler):
         self.config_modified = False
 
     def on_closed(self, event):
-        if not event.is_directory and event.src_path.endswith('config.ini'):
+        if not event.is_directory and event.src_path.endswith('config_test.ini'):
             try:
                 self.config.read_config()
                 self.config_modified = True
@@ -23,7 +23,7 @@ class ConfigFileHandler(FileSystemEventHandler):
 
 def setup_logger(config):
     """Settings for the logging"""
-    level = getattr(logging, config.log_level, 'INFO')
+    level = getattr(logging, config.get_value('general', 'log_level', fallback='INFO'))
     logging.basicConfig(
         handlers=[
             logging.FileHandler('logfile.log'),
@@ -35,49 +35,52 @@ def setup_logger(config):
     )
 
 def main():
+    config_reader = ConfigReader()
+    config_validator = ConfigValidator(config_reader.config)
+
     try:
-        config = Configuration()
-    except IOError as err:
-        logging.error("Error in configuration: %s", err)
+        config_validator.validate_config()
+    except ValueError as err:
+        print(f"Config validation failed: {err}")
         return
     
     # Set up the logger
-    setup_logger(config)
+    setup_logger(config_reader)
 
-    handler = ConfigFileHandler(config)
+    handler = ConfigFileHandler(config_reader)
     observer = Observer()
-    observer.schedule(handler, path='./config.ini', recursive=False)
+    observer.schedule(handler, path='./config_test.ini', recursive=False)
     logging.getLogger('watchdog').setLevel(logging.WARNING)
     observer.start()
 
     notifier = Notifier(
-        config['smtp_server'],
-        config['smtp_port'],
-        config['smtp_username'],
-        config['smtp_password'],
-        config['recipient'],
+        config_reader.get_value('email', 'smtp_server'),
+        config_reader.get_value('email', 'smtp_port', data_type=int),
+        config_reader.get_value('email', 'smtp_username'),
+        config_reader.get_value('email', 'smtp_password'),
+        config_reader.get_value('email', 'recipient'),
     )
     # send a test email
-    notifier.send_test_email()
+    # notifier.send_test_email()
 
-    monitor = SystemMonitor(config, notifier)
+    monitor = SystemMonitor(config_reader, notifier)
 
     try:
         while True:
             # reload the config at each check
             if handler.config_modified:
                 try:
-                    config.read_config()
-                    setup_logger(config)
+                    config_reader.read_config()
+                    setup_logger(config_reader)
                     handler.config_modified = False
                 except (ValueError, NoSectionError, NoOptionError) as err:
                     logging.error("Error reloading config: %s", err)
 
             # set wait time for check up notice
-            next_check = config.check_frequency
+            next_check = config_reader.get_value('time', 'check_frequency', data_type=int)
             _next_check, timeframe = notifier.format_wait_time(next_check)
-
-            health_checks = {disk: monitor.check_health(disk) for disk in monitor.config['disks']}
+            # check for multiple disks
+            health_checks = {disk: monitor.check_health(disk) for disk in config_reader.get_value('general', 'disks').split(',')}
             if all(health_checks.values()):
                 logging.info("System health check passed.")
                 logging.info("The next monitoring will be in %.0f %s", _next_check, timeframe)
@@ -85,10 +88,10 @@ def main():
                 logging.warning("System health check failed")
                 logging.info("The next monitoring will be in %.0f %s", _next_check, timeframe)
 
-            time.sleep(config.check_frequency)
+            time.sleep(config_reader.get_value('time', 'check_frequency', data_type=int))
 
-    except ValueError:
-        logging.error("Exiting due to configuration error.")
+    except ValueError as err:
+        logging.error("Exiting due to configuration error: %s", err)
         observer.stop()
     except KeyboardInterrupt:
         observer.stop()
@@ -98,3 +101,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# pylint: disable=all
