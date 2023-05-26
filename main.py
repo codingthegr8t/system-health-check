@@ -1,35 +1,46 @@
 #!/usr/bin/env python3
 import logging
 import time
+from configparser import NoSectionError, NoOptionError
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 from system_monitor import SystemMonitor
 from notifier import Notifier
 from configuration import Configuration
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 
 class ConfigFileHandler(FileSystemEventHandler):
     def __init__(self, config):
         self.config = config
+        self.config_modified = False
 
     def on_closed(self, event):
         if not event.is_directory and event.src_path.endswith('config.ini'):
-            self.config.read_config()
+            try:
+                self.config.read_config()
+                self.config_modified = True
+            except ValueError as err:
+                logging.error("Error reading config: %s", err)
 
 def setup_logger(config):
+    """Settings for the logging"""
     level = getattr(logging, config.log_level, 'INFO')
     logging.basicConfig(
         handlers=[
             logging.FileHandler('logfile.log'),
             logging.StreamHandler()
         ],
-        format='%(asctime)s - %(levelname)s - %(message)s',
+        format='%(asctime)s - %(levelname)s - %(message)s - %(filename)s - %(lineno)d',
         datefmt='%H:%M:%S %d-%m-%y',
         level=level
     )
 
 def main():
-    config = Configuration()
-
+    try:
+        config = Configuration()
+    except IOError as err:
+        logging.error("Error in configuration: %s", err)
+        return
+    
     # Set up the logger
     setup_logger(config)
 
@@ -46,16 +57,21 @@ def main():
         config['smtp_password'],
         config['recipient'],
     )
+    # send a test email
     notifier.send_test_email()
+
     monitor = SystemMonitor(config, notifier)
 
     try:
         while True:
             # reload the config at each check
-            config.read_config()
-
-            # update the logger settings
-            setup_logger(config)
+            if handler.config_modified:
+                try:
+                    config.read_config()
+                    setup_logger(config)
+                    handler.config_modified = False
+                except (ValueError, NoSectionError, NoOptionError) as err:
+                    logging.error("Error reloading config: %s", err)
 
             # set wait time for check up notice
             next_check = config.check_frequency
@@ -71,14 +87,14 @@ def main():
 
             time.sleep(config.check_frequency)
 
+    except ValueError:
+        logging.error("Exiting due to configuration error.")
+        observer.stop()
     except KeyboardInterrupt:
         observer.stop()
         logging.info("System monitoring stopped")
-    except Exception as err:
-        observer.stop()
-        logging.exception("Exception during health check: %s", err)
-
-    observer.join()
+    finally:
+        observer.join()
 
 if __name__ == "__main__":
     main()

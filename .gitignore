@@ -1,5 +1,3 @@
-config_test.ini
 __pycache__/
 logfile.log
-configuration_test.py
-main_test.py
+test/
