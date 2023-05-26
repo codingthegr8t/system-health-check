@@ -1,5 +1,5 @@
 # System health-check
-System Health Monitor is a Python script designed to monitor the health of system resources and send alerts when usage thresholds are exceeded. 
+System Health Monitor is a Python script designed to monitor the health of system resources and send alerts via e-mail when usage thresholds are exceeded. 
 The application is flexible and user-configurable, allowing you to tailor monitoring to your specific needs.
 
 ## Features
