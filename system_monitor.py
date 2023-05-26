@@ -6,7 +6,7 @@ import pynvml
 import cpuinfo
 from pynvml import NVMLError
 from notifier import Notifier
-from configuration import Configuration
+from config_reader import ConfigReader
 
 class SystemMonitor:
     """
@@ -27,7 +27,7 @@ class SystemMonitor:
     notifier : A Notifier object to send alerts when resource usage exceeds the threshold.
     gpu_present : A boolean indicating if a NVDIA GPU is present on the system.
     """
-    def __init__(self, config: Configuration, notifier: Notifier):
+    def __init__(self, config: ConfigReader, notifier: Notifier):
         self.config = config
         self.notifier = notifier
         self.gpu_present = self.check_gpu_presence()
@@ -142,27 +142,30 @@ class SystemMonitor:
 
     def check_disk_health(self, device_name, disk):
         """Check the Disk health."""
+        disk_threshold = self.config.get_value('general', 'disk_threshold', data_type=int)
         total, free, percent_free = self.get_disk_usage(disk)
-        if percent_free <= self.config.disk_threshold:
-            self.notifier.alert_format(device_name, "Disks", self.config.disk_threshold)
+        if percent_free <= disk_threshold:
+            self.notifier.alert_format(device_name, "Disks", disk_threshold)
             logging.warning("Disk %s - Total space: %.1f GB, Free space: %.1f GB, Percentage free: %.1f%%", disk, total, free, percent_free)
             return False
         return True
 
     def check_cpu_health(self, device_name):
         """Check the CPU health."""
+        cpu_threshold = self.config.get_value('general', 'cpu_threshold', data_type=int)
         cpu_usage, cpu_info = self.get_cpu_usage()
-        if cpu_usage >= self.config.cpu_threshold:
-            self.notifier.alert_format(device_name, "CPU", self.config.cpu_threshold)
+        if cpu_usage >= cpu_threshold:
+            self.notifier.alert_format(device_name, "CPU", cpu_threshold)
             logging.warning("%s usage: %s%%", cpu_info, cpu_usage)
             return False
         return True
 
     def check_ram_health(self, device_name):
         """Check the RAM health."""
+        ram_threshold = self.config.get_value('general', 'ram_threshold', data_type=int)
         total_ram, percent_ram_used = self.get_ram_usage()
-        if percent_ram_used >= self.config.ram_threshold:
-            self.notifier.alert_format(device_name, "RAM", self.config.ram_threshold)
+        if percent_ram_used >= ram_threshold:
+            self.notifier.alert_format(device_name, "RAM", ram_threshold)
             logging.warning("Total System RAM: %.0f GB, RAM usage: %s%%", total_ram, percent_ram_used)
             return False
 
@@ -173,14 +176,17 @@ class SystemMonitor:
         gpu_utilization, gpu_total_memory, memory_utilization, gpu_temperature, gpu_name = self.get_gpu_usage()
         alert_info = []
 
-        if gpu_utilization >= self.config.gpu_threshold:
-            alert_info.append({"resource_name": "GPU Utilization", "threshold": self.config.gpu_threshold})
+        gpu_threshold = self.config.get_value('general', 'gpu_threshold', data_type=int)
+        if gpu_utilization >= gpu_threshold:
+            alert_info.append({"resource_name": "GPU Utilization", "threshold": gpu_threshold})
 
-        if memory_utilization >= self.config.gpu_memory_threshold:
-            alert_info.append({"resource_name": "GPU Memory Utilization", "threshold": self.config.gpu_memory_threshold})
+        gpu_memory_threshold = self.config.get_value('general', 'gpu_memory_threshold', data_type=int)
+        if memory_utilization >= gpu_memory_threshold:
+            alert_info.append({"resource_name": "GPU Memory Utilization", "threshold": gpu_memory_threshold})
 
-        if gpu_temperature >= self.config.gpu_temp_threshold:
-            alert_info.append({"resource_name": "GPU Temperature", "threshold": self.config.gpu_temp_threshold})
+        gpu_temp_threshold = self.config.get_value('general', 'gpu_temp_threshold', data_type=int)
+        if gpu_temperature >= gpu_temp_threshold:
+            alert_info.append({"resource_name": "GPU Temperature", "threshold": gpu_temp_threshold})
 
         if alert_info:
             resource_name_formatted = ', '.join([f'{info["resource_name"]}' for info in alert_info])
@@ -205,4 +211,5 @@ class SystemMonitor:
         is_gpu_healthy = self.check_gpu_health(device_name) if self.gpu_present else True
 
         return is_disk_healthy and is_cpu_healthy and is_ram_healthy and is_gpu_healthy
-    
+
+# pylint: disable=all
