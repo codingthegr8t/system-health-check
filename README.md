@@ -27,7 +27,7 @@ To start the system health monitor, run the main.py script:
 The application will begin monitoring your system resources based on your config.ini settings and log events to logfile.log.
 
 ## Recommendations:
-The System Health Monitor script can run continuously in the background, providing consistent system health monitoring. 
+The System Health Monitor script can run continuously, providing consistent system health monitoring. 
 However, the specific method of implementation will depend on your needs and the nature of your system.
 
 Here are two common scenarios and how to handle them:
