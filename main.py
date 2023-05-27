@@ -14,7 +14,7 @@ class ConfigFileHandler(FileSystemEventHandler):
         self.config_modified = False
 
     def on_closed(self, event):
-        if not event.is_directory and event.src_path.endswith('config_test.ini'):
+        if not event.is_directory and event.src_path.endswith('config.ini'):
             try:
                 self.config.read_config()
                 self.config_modified = True
@@ -49,7 +49,7 @@ def main():
 
     handler = ConfigFileHandler(config_reader)
     observer = Observer()
-    observer.schedule(handler, path='./config_test.ini', recursive=False)
+    observer.schedule(handler, path='./config.ini', recursive=False)
     logging.getLogger('watchdog').setLevel(logging.WARNING)
     observer.start()
 
