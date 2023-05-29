@@ -61,7 +61,7 @@ def main():
         config_reader.get_value('email', 'recipient'),
     )
     # send a test email
-    # notifier.send_test_email()
+    notifier.send_test_email()
 
     monitor = SystemMonitor(config_reader, notifier)
 
