@@ -20,7 +20,7 @@ class ConfigReader:
     get_value(section, key, fallback=None, data_type=str):
         Returns the configuration value for the given section and key.
     """
-    def __init__(self, config_file='config_test.ini'):
+    def __init__(self, config_file='config.ini'):
         self.config = configparser.ConfigParser()
         self.config_file = config_file
         self.read_config()
@@ -44,7 +44,6 @@ class ConfigReader:
                              " Check the config file for incorrect usage.") from err
 
 class ConfigValidator:
-    # pylint: disable=too-few-public-methods
     """
     A class used to validate the configuration file.
 
