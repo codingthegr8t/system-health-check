@@ -88,7 +88,7 @@ def main():
                 logging.warning("System health check failed")
                 logging.info("The next monitoring will be in %.0f %s", _next_check, timeframe)
 
-            time.sleep(config_reader.get_value('time', 'check_frequency', data_type=int))
+            time.sleep(next_check)
 
     except ValueError as err:
         logging.error("Exiting due to configuration error: %s", err)
