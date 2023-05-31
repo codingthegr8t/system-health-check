@@ -61,8 +61,10 @@ def main():
         config_reader.get_value('email', 'smtp_password'),
         config_reader.get_value('email', 'recipient'),
     )
-    # send a test email
     monitor = SystemMonitor(config_reader, notifier)
+
+    # send a test email
+    notifier.send_test_email()
 
     try:
         while True:

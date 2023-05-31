@@ -1,3 +1,4 @@
+from typing import Tuple, Optional
 import shutil
 import logging
 import socket
@@ -13,7 +14,7 @@ class SystemMonitor:
     The SystemMonitor class is a utility for monitoring system resources.
 
     This class provides methods to monitor various system resources like:
-    Disk, CPU, RAM, and GPU if present.
+    Disk, CPU, RAM, and NVDIA GPU if present.
     It uses various external modules to gather the required data. 
     Any exception or error while fetching data is logged and raised further.
 
@@ -27,17 +28,19 @@ class SystemMonitor:
     notifier : A Notifier object to send alerts when resource usage exceeds the threshold.
     gpu_present : A boolean indicating if a NVDIA GPU is present on the system.
     """
+    BYTES_TO_GB = 2**30
+
     def __init__(self, config: ConfigReader, notifier: Notifier):
         self.config = config
         self.notifier = notifier
-        self.gpu_present = self.check_gpu_presence()
+        self.gpu_present: bool = self.check_gpu_presence()
 
-    def get_disk_usage(self, disk):
+    def get_disk_usage(self, disk: str) -> Tuple[float, float, float]:
         """Retrieve disk usage statistics for a given disk."""
         try:
             du = shutil.disk_usage(disk)
-            total = du.total / 2**30     # Convert bytes to GB
-            free = du.free / 2**30
+            total = du.total / self.BYTES_TO_GB     # Convert bytes to GB
+            free = du.free / self.BYTES_TO_GB
             percent_free = free / total * 100
         except FileNotFoundError:
             logging.error("Disk path %s not found.", disk)
@@ -50,7 +53,7 @@ class SystemMonitor:
             raise
         return total, free, percent_free
 
-    def get_cpu_usage(self):
+    def get_cpu_usage(self) -> float:
         """Retrieve CPU usage statistics."""
         try:
             usage = psutil.cpu_percent(1)
@@ -59,11 +62,11 @@ class SystemMonitor:
             raise RuntimeError(f"Unexpected error when retrieving CPU usage: {err}") from err
         return usage
 
-    def get_ram_usage(self):
+    def get_ram_usage(self) -> Tuple[float, float]:
         """Retrieve RAM usage statistics."""
         try:
             ram = psutil.virtual_memory()
-            return ram.total / (1024.0 ** 3), ram.percent
+            return ram.total / self.BYTES_TO_GB, ram.percent
         except psutil.Error as err:
             logging.error("Failed to get RAM usage: %s", err)
             raise RuntimeError(f"Unexpected error when retrieving RAM usage: {err}") from err
@@ -87,7 +90,7 @@ class SystemMonitor:
                 return False
         return False
 
-    def get_gpu_usage(self):
+    def get_gpu_usage(self) -> Optional[Tuple[int, float, float, int, str]]:
         """Retrieve GPU usage statistics."""
         if not self.gpu_present:
             logging.error("GPU not present or not compatible.")
@@ -112,7 +115,7 @@ class SystemMonitor:
         try:
             # Total memory (GB)
             total_memory = pynvml.nvmlDeviceGetMemoryInfo(handle).total
-            total_memory_in_gb = total_memory / (1024 ** 3)
+            total_memory_in_gb = total_memory / self.BYTES_TO_GB
             # Memory utilization (bytes)
             used_memory = pynvml.nvmlDeviceGetMemoryInfo(handle).used
             memory_utilization = (used_memory / total_memory) * 100  # percentage
@@ -139,7 +142,7 @@ class SystemMonitor:
 
         return gpu_utilization, total_memory_in_gb, memory_utilization, gpu_temperature, gpu_name
 
-    def check_disk_health(self, device_name, disk):
+    def check_disk_health(self, device_name: str, disk: str) -> bool:
         """Check the Disk health."""
         disk_threshold = self.config.get_value('general', 'disk_threshold', data_type=int)
         total, free, percent_free = self.get_disk_usage(disk)
@@ -149,7 +152,7 @@ class SystemMonitor:
             return False
         return True
 
-    def check_cpu_health(self, device_name):
+    def check_cpu_health(self, device_name: str) -> bool:
         """Check the CPU health."""
         cpu_threshold = self.config.get_value('general', 'cpu_threshold', data_type=int)
         cpu_usage = self.get_cpu_usage()
@@ -159,7 +162,7 @@ class SystemMonitor:
             return False
         return True
 
-    def check_ram_health(self, device_name):
+    def check_ram_health(self, device_name: str) -> bool:
         """Check the RAM health."""
         ram_threshold = self.config.get_value('general', 'ram_threshold', data_type=int)
         total_ram, percent_ram_used = self.get_ram_usage()
@@ -170,7 +173,7 @@ class SystemMonitor:
 
         return True
 
-    def check_gpu_health(self, device_name):
+    def check_gpu_health(self, device_name: str) -> bool:
         """Check the GPU's health."""
         gpu_utilization, gpu_total_memory, memory_utilization, gpu_temperature, gpu_name = self.get_gpu_usage()
         alert_info = []
@@ -188,16 +191,15 @@ class SystemMonitor:
             alert_info.append({"resource_name": "GPU Temperature", "threshold": gpu_temp_threshold})
 
         if alert_info:
-            resource_name_formatted = ', '.join([f'{info["resource_name"]}' for info in alert_info])
-            threshold_formatted = ', '.join([f'{info["threshold"]}' for info in alert_info])
-            self.notifier.alert_format(device_name, resource_name_formatted, threshold_formatted)
+            for info in alert_info:
+                self.notifier.alert_format(device_name, info["resource_name"], info["threshold"])
             logging.warning("%s - GPU Utilization: %s%%, GPU Memory Utilization: %.1f%%, GPU Total Memory: %.0f, "
                             "GPU Temperature: %s\u2103", gpu_name, gpu_utilization, memory_utilization, gpu_total_memory, gpu_temperature)
             return False
 
         return True
 
-    def check_health(self, disk):
+    def check_health(self, disk: str) -> bool:
         """Check the health of the system."""
         device_name = socket.gethostname()
 

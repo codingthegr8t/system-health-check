@@ -1,3 +1,4 @@
+from typing import Tuple
 import smtplib
 import logging
 import sys
@@ -52,8 +53,21 @@ class Notifier:
         self.smtp_password = smtp_password
         self.recipient = recipient
         self.config = ConfigReader()
+        self.last_alert_times = {"CPU": 0, "RAM": 0, "Disks": 0, "GPU Utilization": 0, "GPU Memory Utilization": 0, "GPU Temperature": 0}
+    
+    def validate_email(self, email: str) -> bool:
+        """Validate email format."""
+        try:
+            # validate and get info
+            validate_email(email)
+            # email is valid
+            return True
+        except EmailNotValidError as err:
+            # email is not valid, exception message is human-readable
+            print(str(err))
+            return False
 
-    def create_email(self, subject, body):
+    def create_email(self, subject: str, body: str) -> EmailMessage:
         """Creates the email."""
         msg = EmailMessage()
         msg.set_content(body)
@@ -68,18 +82,6 @@ class Notifier:
 
         msg["Importance"] = "High"
         return msg
-
-    def validate_email(self, email):
-        """Validate email format."""
-        try:
-            # validate and get info
-            validate_email(email)
-            # email is valid
-            return True
-        except EmailNotValidError as err:
-            # email is not valid, exception message is human-readable
-            print(str(err))
-            return False
 
     def send_alert(self, subject, body):
         """Sends an alert email and handles potential errors."""
@@ -113,16 +115,13 @@ class Notifier:
             logging.critical("Failed to send alert email after 6 retries. Exiting the program.")
             sys.exit(1)
 
-    def try_send_message(self, msg):
+    def try_send_message(self, msg: EmailMessage) -> None:
         """
         Tries to send an email message using SMTP. 
 
         This function creates a connection with the SMTP server, logs in using the SMTP username 
         and password, and sends the email message. If any error occurs during this process, 
         it raises an exception specific to that error type.
-
-        Parameters:
-            msg (EmailMessage): The email message to be sent.
         """
         try:
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
@@ -140,11 +139,17 @@ class Notifier:
         except (smtplib.SMTPException, OSError) as gen_error:
             raise SMTPGenericError("An error occurred while trying to send the email.") from gen_error
 
-    def alert_format(self, device_name, resource_name, threshold):
-        """Formatting the email layout for individual monitor component."""
-        subject = self.config.get_value('email', 'alert_subject_template').format(device_name=device_name, resource_name=resource_name)
-        body = self.config.get_value('email', 'alert_body_template').format(device_name=device_name, resource_name=resource_name, threshold=threshold)
-        self.send_alert(subject, body)
+    def alert_format(self, device_name: str, resource_name: str, threshold: int) -> None:
+        # Retrieve the cooldown time from the configuration (in seconds)
+        cooldown_time = self.config.get_value('time', 'alert_cooldown_time', data_type=int)
+
+        # Only proceed if enough time has passed since the last alert
+        if time.time() - self.last_alert_times[resource_name] > cooldown_time:
+            subject = self.config.get_value('email', 'alert_subject_template').format(device_name=device_name, resource_name=resource_name)
+            body = self.config.get_value('email', 'alert_body_template').format(device_name=device_name, resource_name=resource_name, threshold=threshold)
+            self.send_alert(subject, body)
+            # Update the last alert time
+            self.last_alert_times[resource_name] = time.time()
 
     def send_test_email(self):
         """Check to see if the email is working."""
@@ -166,7 +171,7 @@ class Notifier:
             logging.error("Network connection unavailable. %s", network_err)
             return False
 
-    def format_wait_time(self, wait_time):
+    def format_wait_time(self, wait_time: int) -> Tuple[int, str]:
         """Formatting the waiting timeframe."""
         if wait_time < 60:
             return wait_time, 'seconds'
@@ -175,7 +180,7 @@ class Notifier:
         else:
             return wait_time / 3600, 'hours'
 
-    def enforce_max_wait_time(self, wait_time):
+    def enforce_max_wait_time(self, wait_time: int) -> int:
         """Enforces a maximum wait time of 12 hours."""
         if wait_time > 43200:
             logging.warning("Wait time exceeded limit of 12 hours, setting to default 1 hours.")

@@ -1,3 +1,4 @@
+from typing import Optional, Union, Type
 import configparser
 
 class ConfigReader:
@@ -28,13 +29,13 @@ class ConfigReader:
     def read_config(self):
         self.config.read(self.config_file)
 
-    def get_value(self, section, key, fallback=None, data_type=str):
+    def get_value(self, section: str, key: str, fallback: Optional[Union[str, int, bool]] = None, data_type: Type[Union[str, int, bool]] = str) -> Union[str, int, bool]:
         try:
             if data_type == int:
                 return self.config.getint(section, key, fallback=fallback)
-            # For now I am leaving this here for future use
-            elif data_type == bool:
-                return self.config.getboolean(section, key, fallback=fallback)
+            # # For now I am leaving this here for future use
+            # elif data_type == bool:
+            #     return self.config.getboolean(section, key, fallback=fallback)
             else:
                 return self.config.get(section, key, fallback=fallback)
         except (configparser.NoSectionError, configparser.NoOptionError) as err:
