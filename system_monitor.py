@@ -54,11 +54,10 @@ class SystemMonitor:
         """Retrieve CPU usage statistics."""
         try:
             usage = psutil.cpu_percent(1)
-            info = cpuinfo.get_cpu_info()
         except psutil.Error as err:
             logging.error("Failed to get CPU usage: %s", err)
             raise RuntimeError(f"Unexpected error when retrieving CPU usage: {err}") from err
-        return usage, info['brand_raw']
+        return usage
 
     def get_ram_usage(self):
         """Retrieve RAM usage statistics."""
@@ -153,10 +152,10 @@ class SystemMonitor:
     def check_cpu_health(self, device_name):
         """Check the CPU health."""
         cpu_threshold = self.config.get_value('general', 'cpu_threshold', data_type=int)
-        cpu_usage, cpu_info = self.get_cpu_usage()
+        cpu_usage = self.get_cpu_usage()
         if cpu_usage >= cpu_threshold:
             self.notifier.alert_format(device_name, "CPU", cpu_threshold)
-            logging.warning("%s usage: %s%%", cpu_info, cpu_usage)
+            logging.warning("%s usage: %s%%", cpuinfo.get_cpu_info()['brand_raw'], cpu_usage)
             return False
         return True
 
