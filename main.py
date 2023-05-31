@@ -23,7 +23,8 @@ class ConfigFileHandler(FileSystemEventHandler):
 
 def setup_logger(config):
     """Settings for the logging"""
-    level = getattr(logging, config.get_value('general', 'log_level', fallback='INFO'))
+    log_level = config.get_value('general', 'log_level', fallback='INFO').upper()
+    level = getattr(logging, log_level, None)
     logging.basicConfig(
         handlers=[
             logging.FileHandler('logfile.log'),
@@ -61,8 +62,6 @@ def main():
         config_reader.get_value('email', 'recipient'),
     )
     # send a test email
-    notifier.send_test_email()
-
     monitor = SystemMonitor(config_reader, notifier)
 
     try:
