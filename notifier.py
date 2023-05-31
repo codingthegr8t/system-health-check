@@ -104,7 +104,7 @@ class Notifier:
                 return
             except SMTPGenericError:
                 self.check_network_connection()
-                wait_time = self.enforce_max_wait_time(self.config.get_value('time', 'wait_time_to_resend_email', data_type=int))
+                wait_time = self.enforce_max_wait_time(self.config.get_value('time', 'email_retry_delay', data_type=int))
                 wait_time_str, timeframe = self.format_wait_time(wait_time)
                 logging.error("Failed to send alert email. Retrying in %.0f %s.", wait_time_str, timeframe)
                 time.sleep(wait_time)

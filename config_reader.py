@@ -66,7 +66,7 @@ class ConfigValidator:
         necessary_options = [
             ("general", ["disks", "disk_threshold", "cpu_threshold", "ram_threshold", "gpu_threshold",
                         "gpu_memory_threshold", "gpu_temp_threshold"]),
-            ("time", ["check_frequency", "wait_time_to_resend_email"]),
+            ("time", ["check_frequency", "email_retry_delay"]),
             ("email", ["smtp_server", "smtp_port", "smtp_username", "smtp_password", "recipient"])
         ]
         for section, options in necessary_options:
