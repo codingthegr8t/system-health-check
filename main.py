@@ -13,7 +13,7 @@ class ConfigFileHandler(FileSystemEventHandler):
         self.config = config
         self.config_modified = False
 
-    def on_closed(self, event):
+    def on_modified(self, event):
         if not event.is_directory and event.src_path.endswith('config.ini'):
             try:
                 self.config.read_config()
@@ -44,13 +44,13 @@ def main():
     except ValueError as err:
         print(f"Config validation failed: {err}")
         return
-    
+
     # Set up the logger
     setup_logger(config_reader)
 
     handler = ConfigFileHandler(config_reader)
     observer = Observer()
-    observer.schedule(handler, path='./config.ini', recursive=False)
+    observer.schedule(handler, path='.', recursive=False)
     logging.getLogger('watchdog').setLevel(logging.WARNING)
     observer.start()
 
@@ -80,9 +80,15 @@ def main():
             # set wait time for check up notice
             next_check = config_reader.get_value('time', 'check_frequency', data_type=int)
             _next_check, timeframe = notifier.format_wait_time(next_check)
-            # check for multiple disks
-            health_checks = {disk: monitor.check_health(disk) for disk in config_reader.get_value('general', 'disks').split(',')}
-            if all(health_checks.values()):
+
+            # check health of multiple disks
+            all_disks_healthy = True
+            for disk in monitor.disks:
+                is_disk_healthy = monitor.check_health(disk)
+                if not is_disk_healthy:
+                    all_disks_healthy = False
+                    logging.warning("System health check failed for disk %s", disk)
+            if all_disks_healthy:
                 logging.info("System health check passed.")
                 logging.info("The next monitoring will be in %.0f %s", _next_check, timeframe)
             else:
