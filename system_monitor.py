@@ -76,13 +76,10 @@ class SystemMonitor:
         try:
             pynvml.nvmlInit()
             device_count = pynvml.nvmlDeviceGetCount()
-            if device_count > 0:
-                # Check if at least one of the GPUs is from NVIDIA
-                for i in range(device_count):
-                    handle = pynvml.nvmlDeviceGetHandleByIndex(i)
-                    device_name = pynvml.nvmlDeviceGetName(handle)
-                    if device_name.lower().startswith("nvidia"):
-                        return True
+            # Check if at least one of the GPUs is from NVIDIA
+            if any(pynvml.nvmlDeviceGetName(pynvml.nvmlDeviceGetHandleByIndex(i)).lower().startswith("nvidia") 
+                for i in range(device_count)):
+                return True
             pynvml.nvmlShutdown()
         except pynvml.NVMLError as nvml_err:
             if nvml_err.value in (pynvml.NVML_ERROR_LIBRARY_NOT_FOUND, pynvml.NVML_ERROR_DRIVER_NOT_LOADED):
