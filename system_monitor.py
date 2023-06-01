@@ -5,6 +5,7 @@ import socket
 import psutil
 import pynvml
 import cpuinfo
+import os
 from pynvml import NVMLError
 from notifier import Notifier
 from config_reader import ConfigReader
@@ -34,23 +35,35 @@ class SystemMonitor:
         self.config = config
         self.notifier = notifier
         self.gpu_present: bool = self.check_gpu_presence()
+        self.load_thresholds()
+
+    def load_thresholds(self):
+        """Load all thresholds from configuration."""
+        self.disk_threshold = self.config.get_value('general', 'disk_threshold', data_type=int)
+        self.cpu_threshold = self.config.get_value('general', 'cpu_threshold', data_type=int)
+        self.ram_threshold = self.config.get_value('general', 'ram_threshold', data_type=int)
+        self.gpu_threshold = self.config.get_value('general', 'gpu_threshold', data_type=int)
+        self.gpu_memory_threshold = self.config.get_value('general', 'gpu_memory_threshold', data_type=int)
+        self.gpu_temp_threshold = self.config.get_value('general', 'gpu_temp_threshold', data_type=int)
 
     def get_disk_usage(self, disk: str) -> Tuple[float, float, float]:
         """Retrieve disk usage statistics for a given disk."""
+        if not os.path.exists(disk) or not os.path.isdir(disk):
+            logging.error("Disk path %s not found or is not a directory.", disk)
+            raise FileNotFoundError("Disk path not found or is not a directory.")
+
         try:
             du = shutil.disk_usage(disk)
-            total = du.total / self.BYTES_TO_GB     # Convert bytes to GB
+            total = du.total / self.BYTES_TO_GB
             free = du.free / self.BYTES_TO_GB
             percent_free = free / total * 100
-        except FileNotFoundError:
-            logging.error("Disk path %s not found.", disk)
-            raise
         except PermissionError:
             logging.error("Permission denied to access %s.", disk)
             raise
         except OSError as os_error:
             logging.error("OS error when retrieving disk usage: %s", os_error)
             raise
+
         return total, free, percent_free
 
     def get_cpu_usage(self) -> float:
@@ -141,33 +154,29 @@ class SystemMonitor:
 
     def check_disk_health(self, device_name: str, disk: str) -> bool:
         """Check the Disk health."""
-        disk_threshold = self.config.get_value('general', 'disk_threshold', data_type=int)
         total, free, percent_free = self.get_disk_usage(disk)
-        if percent_free <= disk_threshold:
-            self.notifier.alert_format(device_name, "Disks", disk_threshold)
+        if percent_free <= self.disk_threshold:
+            self.notifier.alert_format(device_name, "Disks", self.disk_threshold)
             logging.warning("Disk %s - Total space: %.1f GB, Free space: %.1f GB, Percentage free: %.1f%%", disk, total, free, percent_free)
             return False
         return True
 
     def check_cpu_health(self, device_name: str) -> bool:
         """Check the CPU health."""
-        cpu_threshold = self.config.get_value('general', 'cpu_threshold', data_type=int)
         cpu_usage = self.get_cpu_usage()
-        if cpu_usage >= cpu_threshold:
-            self.notifier.alert_format(device_name, "CPU", cpu_threshold)
+        if cpu_usage >= self.cpu_threshold:
+            self.notifier.alert_format(device_name, "CPU", self.cpu_threshold)
             logging.warning("%s usage: %s%%", cpuinfo.get_cpu_info()['brand_raw'], cpu_usage)
             return False
         return True
 
     def check_ram_health(self, device_name: str) -> bool:
         """Check the RAM health."""
-        ram_threshold = self.config.get_value('general', 'ram_threshold', data_type=int)
         total_ram, percent_ram_used = self.get_ram_usage()
-        if percent_ram_used >= ram_threshold:
-            self.notifier.alert_format(device_name, "RAM", ram_threshold)
+        if percent_ram_used >= self.ram_threshold:
+            self.notifier.alert_format(device_name, "RAM", self.ram_threshold)
             logging.warning("Total System RAM: %.0f GB, RAM usage: %s%%", total_ram, percent_ram_used)
             return False
-
         return True
 
     def check_gpu_health(self, device_name: str) -> bool:
@@ -175,22 +184,19 @@ class SystemMonitor:
         gpu_utilization, gpu_total_memory, memory_utilization, gpu_temperature, gpu_name = self.get_gpu_usage()
         alert_info = []
 
-        gpu_threshold = self.config.get_value('general', 'gpu_threshold', data_type=int)
-        if gpu_utilization >= gpu_threshold:
-            alert_info.append({"resource_name": "GPU Utilization", "threshold": gpu_threshold})
+        if gpu_utilization >= self.gpu_threshold:
+            alert_info.append({"resource_name": "GPU Usage", "threshold": self.gpu_threshold})
 
-        gpu_memory_threshold = self.config.get_value('general', 'gpu_memory_threshold', data_type=int)
-        if memory_utilization >= gpu_memory_threshold:
-            alert_info.append({"resource_name": "GPU Memory Utilization", "threshold": gpu_memory_threshold})
+        if memory_utilization >= self.gpu_memory_threshold:
+            alert_info.append({"resource_name": "GPU Memory Usage", "threshold": self.gpu_memory_threshold})
 
-        gpu_temp_threshold = self.config.get_value('general', 'gpu_temp_threshold', data_type=int)
-        if gpu_temperature >= gpu_temp_threshold:
-            alert_info.append({"resource_name": "GPU Temperature", "threshold": gpu_temp_threshold})
+        if gpu_temperature >= self.gpu_temp_threshold:
+            alert_info.append({"resource_name": "GPU Temperature", "threshold": self.gpu_temp_threshold})
 
         if alert_info:
             for info in alert_info:
                 self.notifier.alert_format(device_name, info["resource_name"], info["threshold"])
-            logging.warning("%s - GPU Utilization: %s%%, GPU Memory Utilization: %.1f%%, GPU Total Memory: %.0f, "
+            logging.warning("%s - GPU Usage: %s%%, GPU Memory Usage: %.1f%%, GPU Total Memory: %.0f, "
                             "GPU Temperature: %s\u2103", gpu_name, gpu_utilization, memory_utilization, gpu_total_memory, gpu_temperature)
             return False
 
