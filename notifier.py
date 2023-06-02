@@ -121,7 +121,7 @@ class Notifier:
         # Initialize self.last_alert_times[resource_name] if it hasn't been initialized yet
         if resource_name not in self.last_alert_times:
             self.last_alert_times[resource_name] = 0
-            logging.debug(f'Initialized alert time for {resource_name}. Check last_alert_times and resource_name in the compoment if dict name match.')
+            logging.debug(f'Initialized alert time for {resource_name}. Check for name mismatch in var self.last_alert_times and var [resource_name] in the health_check compoment of system_monitor.')
 
         # Only proceed if enough time has passed since the last alert
         if time.time() - self.last_alert_times[resource_name] > cooldown_time:
@@ -130,7 +130,7 @@ class Notifier:
             self.send_alert(subject, body)
             # Update the last alert time
             self.last_alert_times[resource_name] = time.time()
-            logging.info(f'Alert for {resource_name} has been sent, updated last_alert_time count.')
+            logging.debug(f'Alert for {resource_name} has been sent, updated last_alert_time count.')
         else:
             logging.info(f'Not enough time has passed since the last alert for {resource_name}. No alert sent.')
 
