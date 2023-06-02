@@ -1,12 +1,12 @@
 from typing import Tuple, Optional
+from abc import ABC, abstractmethod
 import shutil
 import logging
 import socket
+import os
 import psutil
 import pynvml
 import cpuinfo
-import os
-from abc import ABC, abstractmethod
 from pynvml import NVMLError
 
 BYTES_TO_GB = 2**30
@@ -16,8 +16,8 @@ def handle_exceptions(*exception_types):
         def wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
-            except exception_types as e:
-                logging.error(f"Failed to execute {func.__qualname__}: {e}")
+            except exception_types as err:
+                logging.error("Failed to execute %s: %s", func.__qualname__, err)
                 raise
         return wrapper
     return decorator
@@ -27,9 +27,9 @@ def manage_gpu_resource(func):
         try:
             pynvml.nvmlInit()
             result = func(*args, **kwargs)
-        except pynvml.NVMLError as e:
+        except pynvml.NVMLError as err:
             logging.error("Failed to initialize GPU or get handle")
-            raise e
+            raise err
         finally:
             pynvml.nvmlShutdown()
         return result
@@ -43,7 +43,7 @@ class ResourceMonitor(ABC):
         pass
 
     @abstractmethod
-    def check_health(self, device_name: str, threshold: int) -> bool:
+    def check_health(self, device_name: str, thresholds: dict) -> bool:
         """Check the health of the resource."""
         pass
 
@@ -73,9 +73,11 @@ class DiskMonitor(ResourceMonitor):
             raise
         return total, free, percent_free
 
-    def check_health(self, device_name: str, disk: str, threshold: int) -> bool:
+    def check_health(self, device_name: str, disk: str, thresholds: dict) -> bool:
         """Check the Disk health."""
+        threshold = thresholds.get('disk')
         total, free, percent_free = self.get_usage(disk)
+
         if percent_free <= threshold:
             self.notifier.alert_format(device_name, "Disks", threshold)
             logging.warning("Disk %s - Total space: %.1f GB, Free space: %.1f GB, Percentage free: %.1f%%", disk, total, free, percent_free)
@@ -94,10 +96,12 @@ class CpuMonitor(ResourceMonitor):
     def get_usage(self) -> float:
         """Retrieve CPU usage statistics."""
         return psutil.cpu_percent(1)
-    
-    def check_health(self, device_name: str, threshold: int) -> bool:
+
+    def check_health(self, device_name: str, thresholds: dict) -> bool:
         """Check the CPU health."""
+        threshold = thresholds.get('cpu')
         cpu_usage = self.get_usage()
+
         if cpu_usage >= threshold:
             self.notifier.alert_format(device_name, "CPU", threshold)
             logging.warning("%s usage: %s%%", cpuinfo.get_cpu_info()['brand_raw'], cpu_usage)
@@ -118,9 +122,11 @@ class RamMonitor(ResourceMonitor):
         ram = psutil.virtual_memory()
         return ram.total / BYTES_TO_GB, ram.percent
     
-    def check_health(self, device_name: str, threshold: int) -> bool:
+    def check_health(self, device_name: str, thresholds: dict) -> bool:
         """Check the RAM health."""
+        threshold = thresholds.get('ram')
         total_ram, percent_ram_used = self.get_usage()
+
         if percent_ram_used >= threshold:
             self.notifier.alert_format(device_name, "RAM", threshold)
             logging.warning("Total System RAM: %.0f GB, RAM usage: %s%%", total_ram, percent_ram_used)
@@ -152,9 +158,14 @@ class GpuMonitor(ResourceMonitor):
         gpu_name = pynvml.nvmlDeviceGetName(handle)
         return gpu_utilization, total_memory / BYTES_TO_GB, memory_utilization, gpu_temperature, gpu_name
 
-    def check_health(self, device_name: str, gpu_threshold: int, gpu_memory_threshold: int, gpu_temp_threshold: int) -> bool:
+    def check_health(self, device_name: str, thresholds: dict) -> bool:
         """Check the GPU's health."""
+        gpu_threshold = thresholds.get('gpu')
+        gpu_memory_threshold = thresholds.get('gpu_memory')
+        gpu_temp_threshold = thresholds.get('gpu_temp')
+
         gpu_utilization, gpu_total_memory, memory_utilization, gpu_temperature, gpu_name = self.get_usage()
+
         alert_info = []
 
         if gpu_utilization >= gpu_threshold:
@@ -185,8 +196,6 @@ class SystemMonitor:
         An instance of the ConfigParser class to read configuration settings.
     notifier : Notifier
         An instance of a Notifier class to send alerts if resource usage crosses thresholds.
-    gpu_monitor : GpuMonitor or None
-        An instance of the GpuMonitor class to monitor GPU usage, if a GPU is present.
     disks : list
         A list of the disk partitions to be monitored.
     """
@@ -195,31 +204,43 @@ class SystemMonitor:
         self.disk_monitor = DiskMonitor(notifier)
         self.cpu_monitor = CpuMonitor(notifier)
         self.ram_monitor = RamMonitor(notifier)
-        self.gpu_monitor = GpuMonitor(notifier) if self.check_gpu_presence() else None
+        self.gpu_monitor = GpuMonitor(notifier)
+        self.gpu_present = self.check_gpu_presence()
 
-    def check_gpu_presence(self):
+    def check_gpu_presence(self) -> bool:
         """Check if a GPU is present on the system."""
         try:
             pynvml.nvmlInit()
-            return any(pynvml.nvmlDeviceGetName(pynvml.nvmlDeviceGetHandleByIndex(i)).lower().startswith("nvidia") 
-                for i in range(pynvml.nvmlDeviceGetCount()))
-        except NVMLError:
-            logging.warning("NVML Shared Library Not Found or NVIDIA GPU Driver Not Detected. GPU will not be monitored.")
-            return False
-        finally:
+            device_count = pynvml.nvmlDeviceGetCount()
+            if device_count > 0:
+                # Check if at least one of the GPUs is from NVIDIA
+                for i in range(device_count):
+                    handle = pynvml.nvmlDeviceGetHandleByIndex(i)
+                    device_name = pynvml.nvmlDeviceGetName(handle)
+                    if device_name.lower().startswith("nvidia"):
+                        return True
             pynvml.nvmlShutdown()
+        except pynvml.NVMLError as nvml_err:
+            if nvml_err.value in (pynvml.NVML_ERROR_LIBRARY_NOT_FOUND, pynvml.NVML_ERROR_DRIVER_NOT_LOADED):
+                logging.warning("NVML Shared Library Not Found or NVIDIA GPU Driver Not Loaded. GPU will not be monitored.")
+                return False
+        return False
 
     def check_health(self, disk) -> bool:
-        """Check the health of the system."""
+        """System Health Control Center: check if all individual component(disk,cpu,ram and gpu (if available)) is healthy."""
         device_name = socket.gethostname()
-        is_disk_healthy = self.disk_monitor.check_health(device_name, disk, self.config.get_value('general', 'disk_threshold', data_type=int))
-        is_cpu_healthy = self.cpu_monitor.check_health(device_name, self.config.get_value('general', 'cpu_threshold', data_type=int))
-        is_ram_healthy = self.ram_monitor.check_health(device_name, self.config.get_value('general', 'ram_threshold', data_type=int))
-        is_gpu_healthy = self.gpu_monitor.check_health(device_name,
-            self.config.get_value('general', 'gpu_threshold', data_type=int),
-            self.config.get_value('general', 'gpu_memory_threshold', data_type=int),
-            self.config.get_value('general', 'gpu_temp_threshold', data_type=int)) if self.gpu_monitor else True
+        thresholds = {
+            'disk': self.config.get_value('general', 'disk_threshold', data_type=int),
+            'cpu': self.config.get_value('general', 'cpu_threshold', data_type=int),
+            'ram': self.config.get_value('general', 'ram_threshold', data_type=int),
+            'gpu': self.config.get_value('general', 'gpu_threshold', data_type=int),
+            'gpu_memory': self.config.get_value('general', 'gpu_memory_threshold', data_type=int),
+            'gpu_temp': self.config.get_value('general', 'gpu_temp_threshold', data_type=int)
+        }
+        is_disk_healthy = self.disk_monitor.check_health(device_name, disk, thresholds)
+        is_cpu_healthy = self.cpu_monitor.check_health(device_name, thresholds)
+        is_ram_healthy = self.ram_monitor.check_health(device_name, thresholds)
+        is_gpu_healthy = self.gpu_monitor.check_health(device_name, thresholds) if self.gpu_present else True
 
         return is_disk_healthy and is_cpu_healthy and is_ram_healthy and is_gpu_healthy
-
 # pylint: disable=all
