@@ -82,13 +82,8 @@ def main():
             _next_check, timeframe = notifier.format_wait_time(next_check)
 
             # check health of multiple disks
-            all_disks_healthy = True
-            for disk in monitor.disks:
-                is_disk_healthy = monitor.check_health(disk)
-                if not is_disk_healthy:
-                    all_disks_healthy = False
-                    logging.warning("System health check failed for disk %s", disk)
-            if all_disks_healthy:
+            health_checks = {disk: monitor.check_health(disk) for disk in config_reader.get_value('general', 'disks').split(', ')}
+            if all(health_checks.values()):
                 logging.info("System health check passed.")
                 logging.info("The next monitoring will be in %.0f %s", _next_check, timeframe)
             else:
