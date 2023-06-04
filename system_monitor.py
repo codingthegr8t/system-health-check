@@ -169,9 +169,9 @@ class GpuMonitor(ResourceMonitor):
         alert_info = []
 
         if gpu_utilization >= gpu_threshold:
-            alert_info.append({"resource_name": "GPU Usage", "threshold": gpu_threshold})
+            alert_info.append({"resource_name": "GPU utilization", "threshold": gpu_threshold})
         if memory_utilization >= gpu_memory_threshold:
-            alert_info.append({"resource_name": "GPU Memory Usage", "threshold": gpu_memory_threshold})
+            alert_info.append({"resource_name": "GPU Memory Utilization", "threshold": gpu_memory_threshold})
         if gpu_temperature >= gpu_temp_threshold:
             alert_info.append({"resource_name": "GPU Temperature", "threshold": gpu_temp_threshold})
         if alert_info:

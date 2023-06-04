@@ -1,4 +1,3 @@
-from typing import Tuple
 import smtplib
 import logging
 import sys
@@ -7,23 +6,9 @@ import socket
 from email.message import EmailMessage
 from email_validator import validate_email, EmailNotValidError
 from config_reader import ConfigReader
+from time_manager import TimeManager
 
 class SMTPError(Exception):
-    pass
-
-class SMTPAuthError(SMTPError):
-    pass
-
-class SMTPConnectError(SMTPError):
-    pass
-
-class SMTPResponseError(SMTPError):
-    pass
-
-class SMTPRecipientsRefusedError(SMTPError):
-    pass
-
-class SMTPGenericError(SMTPError):
     pass
 
 class Notifier:
@@ -46,6 +31,7 @@ class Notifier:
         smtp_password (str): The password to authenticate with the SMTP server.
         recipient (str): The recipient's email address.
     """
+
     def __init__(self, smtp_server, smtp_port, smtp_username, smtp_password, recipient):
         self.smtp_server = smtp_server
         self.smtp_port = smtp_port
@@ -53,7 +39,14 @@ class Notifier:
         self.smtp_password = smtp_password
         self.recipient = recipient
         self.config = ConfigReader()
-        self.last_alert_times = {"CPU": 0, "RAM": 0, "Disks": 0, "GPU Usage": 0, "GPU Memory Usage": 0, "GPU Temperature": 0}
+        self.alerts_send_tracker = {
+            "CPU": 0,
+            "RAM": 0,
+            "Disks": 0,
+            "GPU Utilization": 0,
+            "GPU Memory Utilization": 0,
+            "GPU Temperature": 0
+            }
 
     def validate_email(self, email: str) -> bool:
         """Validate email format."""
@@ -63,7 +56,7 @@ class Notifier:
             # email is valid
             return True
         except EmailNotValidError as err:
-            # email is not valid, exception message is human-readable
+            # email is not valid, exception message
             print(str(err))
             return False
 
@@ -87,30 +80,29 @@ class Notifier:
         """Sends an alert email and handles potential errors."""
         msg = self.create_email(subject, "\n" + body)
         retry_count = 0
-        while retry_count < 6:
+        MAX_RETRY = 6
+        while retry_count < MAX_RETRY:
             try:
                 with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
                     server.starttls()
                     server.login(self.smtp_username, self.smtp_password)
                     server.send_message(msg)
-                logging.info("Alert email sent successfully.")
+                logging.info("✉ E-mail was successfully delivered.")
                 return
             except smtplib.SMTPAuthenticationError as auth_err:
-                raise SMTPAuthError("SMTP authentication error occurred. Please check your SMTP username and password (Learn more at https://support.google.com/mail/?p=BadCredentials).") from auth_err
-            except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected) as server_err:
-                raise SMTPConnectError("Unable to connect to the SMTP server. Please check your SMTP server settings.") from server_err
-            except smtplib.SMTPResponseException as exc_err:
-                raise SMTPResponseError("Unexpected response from the SMTP server. Please check your SMTP server settings.") from exc_err
+                raise SMTPError("SMTP authentication error occurred. Please check your SMTP username and password (Learn more at https://support.google.com/mail/?p=BadCredentials).") from auth_err
+            except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected, smtplib.SMTPResponseException) as server_err:
+                raise SMTPError("Unable to connect to the SMTP server. Please check your SMTP server settings.") from server_err
             except smtplib.SMTPRecipientsRefused as recipient_err:
-                raise SMTPRecipientsRefusedError(f"Recipient refused: {self.recipient}. Please check the recipient's email address.") from recipient_err
+                raise SMTPError(f"Recipient refused: {self.recipient}. Please check the recipient's email address.") from recipient_err
             except (smtplib.SMTPException, OSError):
                 self.check_network_connection()
-                wait_time = self.enforce_max_wait_time(self.config.get_value('time', 'email_retry_delay', data_type=int))
-                wait_time_str, timeframe = self.format_wait_time(wait_time)
+                wait_time = TimeManager.enforce_max_wait_time(self.config.get_value('time', 'email_retry_delay', data_type=int))
+                wait_time_str, timeframe = TimeManager.format_wait_time(wait_time)
                 logging.error("Failed to send alert email. Retrying in %.0f %s.", wait_time_str, timeframe)
                 time.sleep(wait_time)
                 retry_count += 1
-        if retry_count == 6:
+        if retry_count == MAX_RETRY:
             logging.critical("Failed to send alert email after 6 retries. Exiting the program.")
             sys.exit(1)
 
@@ -119,31 +111,27 @@ class Notifier:
         cooldown_time = self.config.get_value('time', 'alert_cooldown_time', data_type=int)
 
         # Initialize self.last_alert_times[resource_name] if it hasn't been initialized yet
-        if resource_name not in self.last_alert_times:
-            self.last_alert_times[resource_name] = 0
-            logging.debug(f'Initialized alert time for {resource_name}. Check for name mismatch in var self.last_alert_times and var [resource_name] in the health_check compoment of system_monitor.')
+        if resource_name not in self.alerts_send_tracker:
+            self.alerts_send_tracker[resource_name] = 0
+            logging.debug('Initialized alert time for %s. Check for name missmatch or missing dict element in self.last_alert_times and [resource_name] in the health_check function of ResourceMonitors.', resource_name)
 
         # Only proceed if enough time has passed since the last alert
-        if time.time() - self.last_alert_times[resource_name] > cooldown_time:
+        if time.time() - self.alerts_send_tracker[resource_name] > cooldown_time:
             subject = self.config.get_value('email', 'alert_subject_template').format(device_name=device_name, resource_name=resource_name)
             body = self.config.get_value('email', 'alert_body_template').format(device_name=device_name, resource_name=resource_name, threshold=threshold)
             self.send_alert(subject, body)
             # Update the last alert time
-            self.last_alert_times[resource_name] = time.time()
-            logging.debug(f'Alert for {resource_name} has been sent, updated last_alert_time count.')
+            self.alerts_send_tracker[resource_name] = time.time()
+            logging.debug('Alert for %s has been sent, updated last_alert_time count.', resource_name)
         else:
-            logging.info(f'Not enough time has passed since the last alert for {resource_name}. No alert sent.')
+            logging.info('Not enough time has passed since the last alert for %s. No alert sent.', resource_name)
 
     def send_test_email(self):
-        """Check to see if the email is working."""
+        """Check to see if the email function is working."""
         host = socket.gethostname()
-        try:
-            subject = f"System Health Monitor Test Email from {host} "
-            body = "This is a test email sent by the system monitoring script. If you're reading this, then the email functionality is working correctly."
-            self.send_alert(subject, body)
-        except KeyboardInterrupt:
-            logging.info("System monitoring stopped")
-            sys.exit(0)
+        subject = f"System Health Monitor Test Email from {host} "
+        body = "This is a test email sent by the system monitoring script. If you're reading this, then the email functionality is working correctly."
+        self.send_alert(subject, body)
 
     def check_network_connection(self, host="www.google.com", port=80):
         """Check network connection for email error."""
@@ -153,21 +141,5 @@ class Notifier:
         except (socket.error, socket.gaierror, socket.timeout) as network_err:
             logging.error("Network connection unavailable. %s", network_err)
             return False
-
-    def format_wait_time(self, wait_time: int) -> Tuple[int, str]:
-        """Formatting the waiting timeframe."""
-        if wait_time < 60:
-            return wait_time, 'seconds'
-        elif wait_time < 3600:
-            return wait_time / 60, 'minutes'
-        else:
-            return wait_time / 3600, 'hours'
-
-    def enforce_max_wait_time(self, wait_time: int) -> int:
-        """Enforces a maximum wait time of 12 hours."""
-        if wait_time > 43200:
-            logging.warning("Wait time exceeded limit of 12 hours, setting to default 1 hours.")
-            return 3600
-        return wait_time
 
 # pylint: disable=all

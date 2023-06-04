@@ -5,8 +5,9 @@ from configparser import NoSectionError, NoOptionError
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from system_monitor import SystemMonitor
-from notifier import Notifier
+from notifier import Notifier, TimeManager
 from config_reader import ConfigReader, ConfigValidator
+from time_manager import TimeManager
 
 class ConfigFileHandler(FileSystemEventHandler):
     def __init__(self, config):
@@ -79,15 +80,15 @@ def main():
 
             # set wait time for check up notice
             next_check = config_reader.get_value('time', 'check_frequency', data_type=int)
-            _next_check, timeframe = notifier.format_wait_time(next_check)
+            _next_check, timeframe = TimeManager.format_wait_time(next_check)
 
             # check health of multiple disks
             health_checks = {disk: monitor.check_health(disk) for disk in config_reader.get_value('general', 'disks').split(', ')}
             if all(health_checks.values()):
-                logging.info("System health check passed.")
+                logging.info("✅ System health check passed")
                 logging.info("The next monitoring will be in %.0f %s", _next_check, timeframe)
             else:
-                logging.warning("System health check failed")
+                logging.warning("❌ System health check failed")
                 logging.info("The next monitoring will be in %.0f %s", _next_check, timeframe)
 
             time.sleep(next_check)
