@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import logging
 import time
+import os
 from configparser import NoSectionError, NoOptionError
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -26,15 +27,25 @@ def setup_logger(config):
     """Settings for the logging"""
     log_level = config.get_value('general', 'log_level', fallback='INFO').upper()
     level = getattr(logging, log_level, None)
-    logging.basicConfig(
+    log_dir = './log'
+    log_file = os.path.join(log_dir, 'logfile.log')
+
+    # Check if the directory exists, if not, create it
+    if not os.path.isdir(log_dir):
+        os.makedirs(log_dir)
+
+    try:
+        logging.basicConfig(
         handlers=[
-            logging.FileHandler('./log/logfile.log'),
+            logging.FileHandler(log_file),
             logging.StreamHandler()
         ],
         format='%(asctime)s - %(levelname)s - %(message)s - %(filename)s - %(lineno)d',
         datefmt='%H:%M:%S %d-%m-%y',
         level=level
     )
+    except FileNotFoundError as file_err:
+        print(f"Error while setting up logging: {file_err}")
 
 def main():
     config_reader = ConfigReader()
