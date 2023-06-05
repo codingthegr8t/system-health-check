@@ -4,8 +4,8 @@ import time
 from configparser import NoSectionError, NoOptionError
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from system_monitor import SystemMonitor
-from notifier import Notifier, TimeManager
+from system_monitors import system_monitor
+from notification_alerts import email_notifier
 from config_reader import ConfigReader, ConfigValidator
 from time_manager import TimeManager
 
@@ -15,7 +15,7 @@ class ConfigFileHandler(FileSystemEventHandler):
         self.config_modified = False
 
     def on_modified(self, event):
-        if not event.is_directory and event.src_path.endswith('config.ini'):
+        if not event.is_directory and event.src_path.endswith('./config/config.ini'):
             try:
                 self.config.read_config()
                 self.config_modified = True
@@ -28,7 +28,7 @@ def setup_logger(config):
     level = getattr(logging, log_level, None)
     logging.basicConfig(
         handlers=[
-            logging.FileHandler('logfile.log'),
+            logging.FileHandler('./log/logfile.log'),
             logging.StreamHandler()
         ],
         format='%(asctime)s - %(levelname)s - %(message)s - %(filename)s - %(lineno)d',
@@ -51,18 +51,18 @@ def main():
 
     handler = ConfigFileHandler(config_reader)
     observer = Observer()
-    observer.schedule(handler, path='.', recursive=False)
+    observer.schedule(handler, path='./config/config.ini', recursive=False)
     logging.getLogger('watchdog').setLevel(logging.WARNING)
     observer.start()
 
-    notifier = Notifier(
+    notifier = email_notifier.Notifier(
         config_reader.get_value('email', 'smtp_server'),
         config_reader.get_value('email', 'smtp_port', data_type=int),
         config_reader.get_value('email', 'smtp_username'),
         config_reader.get_value('email', 'smtp_password'),
         config_reader.get_value('email', 'recipient'),
     )
-    monitor = SystemMonitor(config_reader, notifier)
+    monitor = system_monitor.SystemMonitor(config_reader, notifier)
 
     # send a test email
     notifier.send_test_email()
