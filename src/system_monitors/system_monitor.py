@@ -49,7 +49,7 @@ class ResourceMonitor(ABC):
 
 class DiskMonitor(ResourceMonitor):
     """
-    DiskMonitor is a concrete implementation of the ResourceMonitor abstract base class.
+    DiskMonitor is a implementation of the ResourceMonitor abstract base class.
     It monitors the disk usage and health of the system.
     """
     def __init__(self, notifier):
@@ -86,7 +86,7 @@ class DiskMonitor(ResourceMonitor):
 
 class CpuMonitor(ResourceMonitor):
     """
-    CpuMonitor is a concrete implementation of the ResourceMonitor abstract base class.
+    CpuMonitor is a implementation of the ResourceMonitor abstract base class.
     It monitors the CPU usage and health of the system.
     """
     def __init__(self, notifier):
@@ -110,7 +110,7 @@ class CpuMonitor(ResourceMonitor):
 
 class RamMonitor(ResourceMonitor):
     """
-    RamMonitor is a concrete implementation of the ResourceMonitor abstract base class.
+    RamMonitor is a implementation of the ResourceMonitor abstract base class.
     It monitors the RAM usage and health of the system.
     """
     def __init__(self, notifier):
@@ -135,7 +135,7 @@ class RamMonitor(ResourceMonitor):
 
 class GpuMonitor(ResourceMonitor):
     """
-    GpuMonitor is a concrete implementation of the ResourceMonitor abstract base class.
+    GpuMonitor is a implementation of the ResourceMonitor abstract base class.
     It monitors the GPU usage, memory utilization, and temperature of the system.
     """
     def __init__(self, notifier):
@@ -184,7 +184,7 @@ class GpuMonitor(ResourceMonitor):
 
 class SystemMonitor:
     """
-    The SystemMonitor class is a utility for monitoring various system resources.
+    The SystemMonitor class is a utility for monitoring checking system of resources.
 
     It provides methods to monitor system resources like Disk, CPU, RAM, and NVDIA GPU, 
     if present. The class uses external modules to gather the required data and it logs 
@@ -196,8 +196,6 @@ class SystemMonitor:
         An instance of the ConfigParser class to read configuration settings.
     notifier : Notifier
         An instance of a Notifier class to send alerts if resource usage crosses thresholds.
-    disks : list
-        A list of the disk partitions to be monitored.
     """
     def __init__(self, config, notifier):
         self.config = config
@@ -227,7 +225,7 @@ class SystemMonitor:
         return False
 
     def check_health(self, disk) -> bool:
-        """System Health Control Center: check if all individual component(disk,cpu,ram and gpu (if available)) is healthy."""
+        """System Control Center: check if all individual component(disk,cpu,ram and gpu (if available)) is healthy."""
         device_name = socket.gethostname()
         thresholds = {
             'disk': self.config.get_value('general', 'disk_threshold', data_type=int),

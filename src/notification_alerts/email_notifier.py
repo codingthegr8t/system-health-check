@@ -25,28 +25,21 @@ class Notifier:
     sending failure.
     
     Attributes:
-        smtp_server (str): The SMTP server to use for sending emails.
-        smtp_port (int): The port on the SMTP server to use.
-        smtp_username (str): The username to authenticate with the SMTP server.
-        smtp_password (str): The password to authenticate with the SMTP server.
-        recipient (str): The recipient's email address.
+        smtp_server: The SMTP server to use for sending emails.
+        smtp_port: The port on the SMTP server to use.
+        smtp_username: The username to authenticate with the SMTP server.
+        smtp_password: The password to authenticate with the SMTP server.
+        recipient: The recipient's email address.
     """
 
-    def __init__(self, smtp_server, smtp_port, smtp_username, smtp_password, recipient):
+    def __init__(self, smtp_server: str, smtp_port: int, smtp_username: str, smtp_password: str, recipient: str):
         self.smtp_server = smtp_server
         self.smtp_port = smtp_port
         self.smtp_username = smtp_username
         self.smtp_password = smtp_password
         self.recipient = recipient
         self.config = ConfigReader()
-        self.alerts_send_tracker = {
-            "CPU": 0,
-            "RAM": 0,
-            "Disks": 0,
-            "GPU Utilization": 0,
-            "GPU Memory Utilization": 0,
-            "GPU Temperature": 0
-            }
+        self.alerts_send_tracker = {}
 
     def validate_email(self, email: str) -> bool:
         """Validate email format."""
@@ -99,21 +92,21 @@ class Notifier:
                 self.check_network_connection()
                 wait_time = TimeManager.enforce_max_wait_time(self.config.get_value('time', 'email_retry_delay', data_type=int))
                 wait_time_str, timeframe = TimeManager.format_wait_time(wait_time)
-                logging.error("Failed to send alert email. Retrying in %.0f %s.", wait_time_str, timeframe)
+                logging.error("❌ Failed to send alert email. Retrying in %.0f %s.", wait_time_str, timeframe)
                 time.sleep(wait_time)
                 retry_count += 1
         if retry_count == MAX_RETRY:
-            logging.critical("Failed to send alert email after 6 retries. Exiting the program.")
+            logging.critical("❌ Failed to send alert email after 6 retries. Exiting the program.")
             sys.exit(1)
 
     def alert_format(self, device_name: str, resource_name: str, threshold: int) -> None:
         # Retrieve the cooldown time from the configuration (in seconds)
         cooldown_time = self.config.get_value('time', 'alert_cooldown_time', data_type=int)
 
-        # Initialize self.last_alert_times[resource_name] if it hasn't been initialized yet
+        # Initialize self.alerts_send_tracker[resource_name] if it hasn't been initialized yet
         if resource_name not in self.alerts_send_tracker:
             self.alerts_send_tracker[resource_name] = 0
-            logging.debug('Initialized alert time for %s. Check for name missmatch or missing dict element in self.last_alert_times and [resource_name] in the health_check function of ResourceMonitors.', resource_name)
+            logging.debug(f'Initialized alert time for {resource_name}. Check for name mismatch in var self.alerts_send_tracker and var [resource_name] in the health_check compoment of system_monitor.')
 
         # Only proceed if enough time has passed since the last alert
         if time.time() - self.alerts_send_tracker[resource_name] > cooldown_time:
@@ -124,14 +117,19 @@ class Notifier:
             self.alerts_send_tracker[resource_name] = time.time()
             logging.debug('Alert for %s has been sent, updated last_alert_time count.', resource_name)
         else:
-            logging.info('Not enough time has passed since the last alert for %s. No alert sent.', resource_name)
+            logging.debug('Not enough time has passed since the last alert for %s. No alert sent.', resource_name)
 
     def send_test_email(self):
         """Check to see if the email function is working."""
         host = socket.gethostname()
-        subject = f"System Health Monitor Test Email from {host} "
-        body = "This is a test email sent by the system monitoring script. If you're reading this, then the email functionality is working correctly."
-        self.send_alert(subject, body)
+        try:
+            subject = f"System Health Monitor Test Email from {host} "
+            body = "This is a test email sent by the system monitoring script. If you're reading this, then the email functionality is working correctly."
+            self.send_alert(subject, body)
+        # This is for when the email test didn't send succesfully
+        except KeyboardInterrupt:
+            logging.info("System monitoring stopped")
+            sys.exit(0)
 
     def check_network_connection(self, host="www.google.com", port=80):
         """Check network connection for email error."""

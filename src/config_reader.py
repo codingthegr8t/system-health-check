@@ -21,7 +21,7 @@ class ConfigReader:
     get_value(section, key, fallback=None, data_type=str):
         Returns the configuration value for the given section and key.
     """
-    def __init__(self, config_file='config.ini'):
+    def __init__(self, config_file: str ='./config/config.ini'):
         self.config = configparser.ConfigParser()
         self.config_file = config_file
         self.read_config()
@@ -33,7 +33,7 @@ class ConfigReader:
         try:
             if data_type == int:
                 return self.config.getint(section, key, fallback=fallback)
-            # # For now I am leaving this here for future use
+            # # For now I am leaving this here for future features
             # elif data_type == bool:
             #     return self.config.getboolean(section, key, fallback=fallback)
             else:
@@ -64,11 +64,13 @@ class ConfigValidator:
         self.config = config
 
     def validate_config(self):
+        """List of sections and option that are needed be present in the config.ini"""
         necessary_options = [
             ("general", ["disks", "disk_threshold", "cpu_threshold", "ram_threshold", "gpu_threshold",
                         "gpu_memory_threshold", "gpu_temp_threshold"]),
-            ("time", ["check_frequency", "email_retry_delay"]),
-            ("email", ["smtp_server", "smtp_port", "smtp_username", "smtp_password", "recipient"])
+            ("time", ["check_frequency", "email_retry_delay", "alert_cooldown_time"]),
+            ("email", ["smtp_server", "smtp_port", "smtp_username", "smtp_password", "recipient", 
+                       "alert_subject_template", "alert_body_template"])
         ]
         for section, options in necessary_options:
             if not self.config.has_section(section):
