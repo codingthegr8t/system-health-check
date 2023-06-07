@@ -177,7 +177,7 @@ class GpuMonitor(ResourceMonitor):
         if alert_info:
             for info in alert_info:
                 self.notifier.alert_format(device_name, info["resource_name"], info["threshold"])
-                logging.warning("%s - GPU Utilization: %s%%, GPU Memory Utilization: %.1f%%, GPU Total Memory: %.0f, "
+                logging.warning("%s - GPU Utilization: %s%%, GPU Memory Utilization: %.1f%%, GPU Total Memory: %.0f GB, "
                             "GPU Temperature: %s\u2103", gpu_name, gpu_utilization, memory_utilization, gpu_total_memory, gpu_temperature)
             return False
         return True
