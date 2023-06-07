@@ -89,10 +89,12 @@ class Notifier:
             except smtplib.SMTPRecipientsRefused as recipient_err:
                 raise SMTPError(f"Recipient refused: {self.recipient}. Please check the recipient's email address.") from recipient_err
             except (smtplib.SMTPException, OSError):
+                # Check network connection only when smptpException is raised
                 self.check_network_connection()
+                # Setting 12 hour rule for  
                 wait_time = TimeManager.enforce_max_wait_time(self.config.get_value('time', 'email_retry_delay', data_type=int))
-                wait_time_str, timeframe = TimeManager.format_wait_time(wait_time)
-                logging.error("❌ Failed to send alert email. Retrying in %.0f %s.", wait_time_str, timeframe)
+                _wait_time, timeframe = TimeManager.format_wait_time(wait_time)
+                logging.error("❌ Failed to send alert email. Retrying in %.0f %s.", _wait_time, timeframe)
                 time.sleep(wait_time)
                 retry_count += 1
         if retry_count == MAX_RETRY:

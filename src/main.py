@@ -23,9 +23,8 @@ class ConfigFileHandler(FileSystemEventHandler):
             except ValueError as err:
                 logging.error("Error reading config: %s", err)
 
-def setup_logger(config):
+def setup_logger(log_level):
     """Settings for the logging"""
-    log_level = config.get_value('general', 'log_level', fallback='INFO').upper()
     level = getattr(logging, log_level, None)
     log_dir = './log'
     log_file = os.path.join(log_dir, 'logfile.log')
@@ -36,14 +35,15 @@ def setup_logger(config):
 
     try:
         logging.basicConfig(
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler()
-        ],
-        format='%(asctime)s - %(levelname)s - %(message)s - %(filename)s - %(lineno)d',
-        datefmt='%H:%M:%S %d-%m-%y',
-        level=level
-    )
+            handlers=[
+                logging.FileHandler(log_file),
+                logging.StreamHandler()
+            ],
+            format='%(asctime)s - %(levelname)s - %(message)s - %(filename)s - %(lineno)d',
+            datefmt='%H:%M:%S %d-%m-%y',
+            level=level
+        )
+        logging.getLogger().setLevel(level)
     except FileNotFoundError as file_err:
         print(f"Error while setting up logging: {file_err}")
 
@@ -58,7 +58,8 @@ def main():
         return
 
     # Set up the logger
-    setup_logger(config_reader)
+    log_level = config_reader.get_value('general', 'log_level', fallback='INFO').upper()
+    setup_logger(log_level)
 
     handler = ConfigFileHandler(config_reader)
     observer = Observer()
@@ -84,7 +85,10 @@ def main():
             if handler.config_modified:
                 try:
                     config_reader.read_config()
-                    setup_logger(config_reader)
+                    # get new log level
+                    new_log_level = config_reader.get_value('general', 'log_level', fallback='INFO').upper()
+                    # call setup_logger with new log level
+                    setup_logger(new_log_level)
                     handler.config_modified = False
                 except (ValueError, NoSectionError, NoOptionError) as err:
                     logging.error("Error reloading config: %s", err)
