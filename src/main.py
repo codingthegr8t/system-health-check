@@ -113,7 +113,7 @@ def main():
         observer.stop()
     except KeyboardInterrupt:
         observer.stop()
-        logging.info("System monitoring stopped")
+        logging.info("KeyboardInterrupt: Monitoring stopped")
     finally:
         observer.join()
 

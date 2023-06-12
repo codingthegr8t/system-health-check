@@ -125,12 +125,12 @@ class Notifier:
         """Check to see if the email function is working."""
         host = socket.gethostname()
         try:
-            subject = f"System Health Monitor Test Email from {host} "
+            subject = f"System Health Monitor Test Email from {host}"
             body = "This is a test email sent by the system monitoring script. If you're reading this, then the email functionality is working correctly."
             self.send_alert(subject, body)
         # This is for when the email test didn't send succesfully
         except KeyboardInterrupt:
-            logging.info("System monitoring stopped")
+            logging.info("KeyboardInterrupt: Monitoring stopped")
             sys.exit(0)
 
     def check_network_connection(self, host="www.google.com", port=80):
