@@ -3,8 +3,6 @@ import logging
 
 class TimeManager:
     """Manage wait time formats and enforce wait time limits."""
-
-    # Constants for time values
     SECONDS_IN_MINUTE = 60
     SECONDS_IN_HOUR = 3600
     MAX_WAIT_TIME = 43200  # 12 hours in seconds

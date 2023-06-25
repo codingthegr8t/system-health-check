@@ -1,5 +1,6 @@
 psutil
 py-cpuinfo
 email-validator
+uptime
 watchdog
 pynvml

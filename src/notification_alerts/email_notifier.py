@@ -1,6 +1,7 @@
 import smtplib
 import logging
 import sys
+import uptime
 import time
 import socket
 from email.message import EmailMessage
@@ -40,6 +41,7 @@ class Notifier:
         self.recipient = recipient
         self.config = ConfigReader()
         self.alerts_send_tracker = {}
+        self.network_check = False
 
     def validate_email(self, email: str) -> bool:
         """Validate email format."""
@@ -90,11 +92,12 @@ class Notifier:
                 raise SMTPError(f"Recipient refused: {self.recipient}. Please check the recipient's email address.") from recipient_err
             except (smtplib.SMTPException, OSError):
                 # Check network connection only when smptpException is raised
+                self.network_check = False
                 self.check_network_connection()
                 # Setting 12 hour rule for  
                 wait_time = TimeManager.enforce_max_wait_time(self.config.get_value('time', 'email_retry_delay', data_type=int))
                 _wait_time, timeframe = TimeManager.format_wait_time(wait_time)
-                logging.error("❌ Failed to send alert email. Retrying in %.0f %s.", _wait_time, timeframe)
+                logging.warning("❌ Failed to send alert email. Retrying in %.0f %s.", _wait_time, timeframe)
                 time.sleep(wait_time)
                 retry_count += 1
         if retry_count == MAX_RETRY:
@@ -108,7 +111,7 @@ class Notifier:
         # Initialize self.alerts_send_tracker[resource_name] if it hasn't been initialized yet
         if resource_name not in self.alerts_send_tracker:
             self.alerts_send_tracker[resource_name] = 0
-            logging.debug(f'Initialized alert time for {resource_name}. Check for name mismatch in var self.alerts_send_tracker and var [resource_name] in the health_check compoment of system_monitor.')
+            logging.debug(f'Initialized alert time for {resource_name}. Check for name missmatch in var self.alerts_send_tracker and var [resource_name] in the health_check compoment of system_monitor.')
 
         # Only proceed if enough time has passed since the last alert
         if time.time() - self.alerts_send_tracker[resource_name] > cooldown_time:
@@ -122,16 +125,41 @@ class Notifier:
             logging.debug('Not enough time has passed since the last alert for %s. No alert sent.', resource_name)
 
     def send_test_email(self):
-        """Check to see if the email function is working."""
-        host = socket.gethostname()
+        """Send a test to see if the email function is working."""
         try:
-            subject = f"System Health Monitor Test Email from {host}"
-            body = "This is a test email sent by the system monitoring script. If you're reading this, then the email functionality is working correctly."
-            self.send_alert(subject, body)
-        # This is for when the email test didn't send succesfully
+            # Get the uptime of the system
+            uptime_seconds = uptime.uptime()
+            # get the hostname
+            host = socket.gethostname()
+            # If the system has been up for less than a minute, check for network connection
+            if uptime_seconds < 60:
+                # Increase the initial wait time before checking for network connection
+                initial_wait_time = 30 * 2
+                logging.debug("SYSTEM STARTUP: Waiting %ds for network connectivity to be established...", initial_wait_time)
+                time.sleep(initial_wait_time)
+                # Implement a backoff strategy for network connection checks
+                backoff_time = 15
+                while not self.check_network_connection():
+                    logging.debug("Waiting for network connection: next check in %ds...", backoff_time)
+                    time.sleep(backoff_time)
+                    backoff_time *= 2  # Increase the wait time for the next check
+                # Send test email once network connection is established
+                logging.debug("Network connection established. Sending test email...")
+                subject = f"System Health Monitor Test Email from {host}"
+                body = "This is a test email sent by the system monitoring script. If you're reading this, then the email functionality is working correctly."
+                self.send_alert(subject, body)
+            else:
+                logging.debug("System has been up for more than a minute. Sending test email...")
+                subject = f"System Health Monitor Test Email from {host}"
+                body = "This is a test email sent by the system monitoring script. If you're reading this, then the email functionality is working correctly."
+                self.send_alert(subject, body)
+        # The keyboardInterrupt exception is for when the email test is in the retry loop
         except KeyboardInterrupt:
             logging.info("KeyboardInterrupt: Monitoring stopped")
             sys.exit(0)
+        except Exception as err:
+            # Log the specific type of error that occurred
+            logging.error("An error occurred while sending the test email: %s", str(err))
 
     def check_network_connection(self, host="www.google.com", port=80):
         """Check network connection for email error."""
@@ -139,7 +167,9 @@ class Notifier:
             socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
             return True
         except (socket.error, socket.gaierror, socket.timeout) as network_err:
-            logging.error("Network connection unavailable. %s", network_err)
+            if not self.network_check:
+                logging.warning("Network connection unavailable. %s", network_err)
+                self.network_check = True
             return False
 
 # pylint: disable=all
