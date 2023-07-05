@@ -5,8 +5,6 @@ The application is flexible and user-configurable, allowing you to tailor monito
 ## Features
 1.  Monitor the usage of the following system resources: CPU, RAM, Disk and GPU (gpu monitor is for now only available for nvdia graphic card).
 2.  Send email alerts when resource usage exceeds a user-specified threshold.
-3.  Dynamically adapt to changes in the configuration file without requiring a restart.
-4.  Comprehensive logging of events and errors.
 
 # Getting Started
 ## Prerequisites
@@ -23,7 +21,7 @@ The `src/config/config.ini` file is used to configure the application. This file
 
 ## Running the Application
 To start the system health monitor, run the main.py script:
-*  `python main.py`
+*  `python3 main.py`
 *  `./main.py`
 > The application will begin monitoring your system resources based on your config.ini settings and log events to logfile.log.
 
