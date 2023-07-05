@@ -111,7 +111,7 @@ class Notifier:
         # Initialize self.alerts_send_tracker[resource_name] if it hasn't been initialized yet
         if resource_name not in self.alerts_send_tracker:
             self.alerts_send_tracker[resource_name] = 0
-            logging.debug(f'Initialized alert time for {resource_name}. Check for name missmatch in var self.alerts_send_tracker and var [resource_name] in the health_check compoment of system_monitor.')
+            logging.debug(f'Initialized alert time for {resource_name}.')
 
         # Only proceed if enough time has passed since the last alert
         if time.time() - self.alerts_send_tracker[resource_name] > cooldown_time:
