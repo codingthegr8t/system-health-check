@@ -105,10 +105,10 @@ def main():
             if prev_health_check != health_passed:
                 if health_passed:
                     logging.info("✅ System health check passed")
-                    logging.info("The next monitoring will be in %.0f %s", _next_check, timeframe)
+                    logging.info("The health check is set to check every %.0f %s", _next_check, timeframe)
                 else:
                     logging.warning("❌ System health check failed")
-                    logging.info("The next monitoring will be in %.0f %s", _next_check, timeframe)
+                    logging.info("The health check is set to check every %.0f %s", _next_check, timeframe)
                 prev_health_check = health_passed
 
             time.sleep(next_check)
