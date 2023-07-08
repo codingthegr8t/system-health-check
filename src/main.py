@@ -80,6 +80,7 @@ def main():
     notifier.send_test_email()
 
     try:
+        prev_health_check = None
         while True:
             # reload the config at each check
             if handler.config_modified:
@@ -99,12 +100,16 @@ def main():
 
             # check health of multiple disks
             health_checks = {disk: monitor.check_health(disk) for disk in config_reader.get_value('general', 'disks').split(', ')}
-            if all(health_checks.values()):
-                logging.info("✅ System health check passed")
-                logging.info("The next monitoring will be in %.0f %s", _next_check, timeframe)
-            else:
-                logging.warning("❌ System health check failed")
-                logging.info("The next monitoring will be in %.0f %s", _next_check, timeframe)
+
+            health_passed = all(health_checks.values())
+            if prev_health_check != health_passed:
+                if health_passed:
+                    logging.info("✅ System health check passed")
+                    logging.info("The next monitoring will be in %.0f %s", _next_check, timeframe)
+                else:
+                    logging.warning("❌ System health check failed")
+                    logging.info("The next monitoring will be in %.0f %s", _next_check, timeframe)
+                prev_health_check = health_passed
 
             time.sleep(next_check)
 
