@@ -82,7 +82,7 @@ class Notifier:
                     server.starttls()
                     server.login(self.smtp_username, self.smtp_password)
                     server.send_message(msg)
-                logging.info("✉ E-mail was successfully delivered.")
+                logging.info("HEALTHY: E-mail was successfully delivered")
                 return
             except smtplib.SMTPAuthenticationError as auth_err:
                 raise SMTPError("SMTP authentication error occurred. Please check your SMTP username and password (Learn more at https://support.google.com/mail/?p=BadCredentials).") from auth_err
