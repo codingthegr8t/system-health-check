@@ -97,11 +97,11 @@ class Notifier:
                 # Setting 12 hour rule for  
                 wait_time = TimeManager.enforce_max_wait_time(self.config.get_value('time', 'email_retry_delay', data_type=int))
                 _wait_time, timeframe = TimeManager.format_wait_time(wait_time)
-                logging.warning("❌ Failed to send alert email. Retrying in %.0f %s.", _wait_time, timeframe)
+                logging.warning("ATTENTION: Failed to send alert email. Retrying in %.0f %s.", _wait_time, timeframe)
                 time.sleep(wait_time)
                 retry_count += 1
         if retry_count == MAX_RETRY:
-            logging.critical("❌ Failed to send alert email after 6 retries. Exiting the program.")
+            logging.critical("ERROR: Failed to send alert email after 6 retries. Exiting the program.")
             sys.exit(1)
 
     def alert_format(self, device_name: str, resource_name: str, threshold: int) -> None:
@@ -134,8 +134,8 @@ class Notifier:
             # If the system has been up for less than a minute, check for network connection
             if uptime_seconds < 60:
                 # Increase the initial wait time before checking for network connection
-                initial_wait_time = 30 * 2
-                logging.debug("SYSTEM STARTUP: Waiting %ds for network connectivity to be established...", initial_wait_time)
+                initial_wait_time = 30
+                logging.info("SYSTEM STARTUP: Waiting %ds for network connectivity to be established...", initial_wait_time)
                 time.sleep(initial_wait_time)
                 # Implement a backoff strategy for network connection checks
                 backoff_time = 15

@@ -104,10 +104,10 @@ def main():
             health_passed = all(health_checks.values())
             if prev_health_check != health_passed:
                 if health_passed:
-                    logging.info("✅ System health check passed")
+                    logging.info("HEALTHY: System health check passed")
                     logging.info("The health check is set to check every %.0f %s", _next_check, timeframe)
                 else:
-                    logging.warning("❌ System health check failed")
+                    logging.warning("ATTENTION: System health check failed")
                     logging.info("The health check is set to check every %.0f %s", _next_check, timeframe)
                 prev_health_check = health_passed
 
