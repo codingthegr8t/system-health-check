@@ -43,4 +43,4 @@ example with nohup:
 
 # Contact
 
-If you have any questions or feedback, feel free to contact us at schuilenburgchris@gmail.com.
+If you have any questions or feedback, feel free to contact me at schuilenburgchris@gmail.com.
