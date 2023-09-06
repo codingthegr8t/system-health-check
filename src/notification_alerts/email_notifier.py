@@ -51,8 +51,7 @@ class Notifier:
             # email is valid
             return True
         except EmailNotValidError as err:
-            # email is not valid, exception message
-            print(str(err))
+            # email is not valid
             return False
 
     def create_email(self, subject: str, body: str) -> EmailMessage:
@@ -92,6 +91,7 @@ class Notifier:
                 raise SMTPError(f"Recipient refused: {self.recipient}. Please check the recipient's email address.") from recipient_err
             except (smtplib.SMTPException, OSError):
                 # Check network connection only when smptpException is raised
+                # We will try to reconnect in case of network issue
                 self.network_check = False
                 self.check_network_connection()
                 # Setting 12 hour rule for  
@@ -158,8 +158,9 @@ class Notifier:
             logging.info("KeyboardInterrupt: Monitoring stopped")
             sys.exit(0)
         except Exception as err:
-            # Log the specific type of error that occurred
+            # Sending test email is part of core function of the script. So we exit with error
             logging.error("An error occurred while sending the test email: %s", str(err))
+            sys.exit(1)
 
     def check_network_connection(self, host="www.google.com", port=80):
         """Check network connection for email error."""
